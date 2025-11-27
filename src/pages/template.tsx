@@ -1,0 +1,249 @@
+import React, { useEffect } from 'react'
+import CustomSider from 'src/components/custom/CustomSider'
+import CustomLayout from 'src/components/custom/CustomLayout'
+import CustomMenu from 'src/components/custom/CustomMenu'
+import CustomContent from 'src/components/custom/CustomContent'
+import CustomRow from 'src/components/custom/CustomRow'
+import styled from 'styled-components'
+import ConditionalComponent from 'src/components/ConditionalComponent'
+import ThemeTransitionLayout from 'src/components/ThemeTransition'
+import { useAppContext } from 'src/context/AppContext'
+import { useGetUserMenuOptionsQuery } from 'src/services/menu-options/useGetUserMenuOptionsQuery'
+import { MenuOption } from 'src/services/menu-options/menu-options.types'
+import SVGReader from 'src/components/SVGReader'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useMenuOptionStore } from 'src/store/menu-options.store'
+import { findParentKeys } from 'src/utils/find-parent-keys'
+import { MenuProps } from 'antd'
+import CustomDivider from 'src/components/custom/CustomDivider'
+import { usePeopleStore } from 'src/store/people.store'
+import MainHeader from 'src/components/layout/MainHeader'
+
+const LogoWrapper = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: ${({ theme }) =>
+    theme.isDark ? '#001529' : theme.colorBgContainer};
+  padding: 10px 0;
+`
+
+const LogoContainer = styled.div`
+  height: 6rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  img {
+    width: 75%;
+    filter: ${({ theme: { isDark } }) => (isDark ? 'invert(100%)' : undefined)};
+  }
+`
+
+const Content = styled(CustomContent)`
+  overflow: auto;
+  padding: 24px 50px;
+  margin: 15px 0 0 0;
+  min-height: 280px;
+  width: 100%;
+  max-width: 1200px;
+  border-radius: ${({ theme }) => theme.borderRadius}px !important;
+`
+
+const BodyContainer = styled.div`
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box !important;
+`
+
+const Sider = styled(CustomSider)`
+  height: 100vh !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  padding: 10px !important;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-top: 0 !important;
+
+  .menu-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 80px; /* evita que el botón se superponga */
+  }
+
+  .btn-logout {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+`
+
+const Menu = styled(CustomMenu)`
+  border-right: 0;
+  background-color: ${({ theme: { isDark, colorBgLayout } }) =>
+    isDark ? '#001529' : colorBgLayout} !important;
+`
+
+const Layout = styled(CustomLayout)`
+  height: 100vh !important;
+`
+
+const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const { activityId } = useParams()
+  const navigate = useNavigate()
+  const { isAuthenticated, theme } = useAppContext()
+  const [searchParams] = useSearchParams()
+
+  useGetUserMenuOptionsQuery()
+
+  const {
+    setCurrentMenuOption,
+    currenMenuOption,
+    menuOptions,
+    setOpenKeys,
+    setSelectedKeys,
+    openKeys,
+    selectedKeys,
+  } = useMenuOptionStore()
+
+  const { setProfileVisibilitySate, profileVisibilityState } = usePeopleStore()
+
+  useEffect(() => {
+    if (!profileVisibilityState && searchParams.get('username')) {
+      setProfileVisibilitySate(true)
+    }
+  }, [profileVisibilityState, searchParams])
+
+  useEffect(() => {
+    let current = currenMenuOption
+    if (currenMenuOption?.MENU_OPTION_ID !== activityId) {
+      current = menuOptions.find((item) => item?.MENU_OPTION_ID === activityId)
+    }
+    const keys = findParentKeys(menuOptions, [
+      current?.MENU_OPTION_ID,
+    ]) as string[]
+    setOpenKeys([...keys, current?.PARENT_ID, current?.MENU_OPTION_ID])
+    setSelectedKeys([current?.MENU_OPTION_ID])
+  }, [currenMenuOption])
+
+  useEffect(() => {
+    if (
+      activityId !== currenMenuOption?.MENU_OPTION_ID ||
+      !currenMenuOption?.MENU_OPTION_ID
+    ) {
+      setCurrentMenuOption(
+        menuOptions.find((item) => item.MENU_OPTION_ID === activityId)
+      )
+    }
+  }, [activityId, menuOptions])
+
+  const handleClickOption = (option: MenuOption) => {
+    if (option?.CHILDREN?.length) return
+
+    setCurrentMenuOption(option)
+    navigate(option.PATH)
+  }
+
+  const getSubMenu = (options: MenuOption[]): MenuProps['items'] => {
+    return options?.map((option: MenuOption) => {
+      return {
+        key: option?.MENU_OPTION_ID,
+        title: option.NAME,
+        type: option.TYPE,
+        icon: <SVGReader svg={option.ICON} />,
+        onClick: option?.CHILDREN?.length
+          ? undefined
+          : () => handleClickOption(option),
+        children: option?.CHILDREN?.length
+          ? getSubMenu(option?.CHILDREN)
+          : undefined,
+        label: (
+          <div style={{ width: '100%', display: 'block' }}>{option.NAME}</div>
+        ),
+      }
+    }) as never
+  }
+
+  const items = getSubMenu(menuOptions)
+  const getLevelKeys = (items1: MenuProps['items']) => {
+    const key: Record<string, number> = {}
+    const func = (items2: MenuProps['items'], level = 1) => {
+      items2.forEach((item) => {
+        if (item?.key) {
+          key[item.key?.toString()] = level
+        }
+        if (item?.['children']) {
+          func(item?.['children'], level + 1)
+        }
+      })
+    }
+    func(items1)
+    return key
+  }
+
+  const levelKeys = getLevelKeys(items)
+
+  const handleOpenChange: MenuProps['onOpenChange'] = (keys) => {
+    const currentOpenKey = keys.find((key) => openKeys.indexOf(key) === -1)
+    if (currentOpenKey !== undefined) {
+      const repeatIndex = keys
+        .filter((key) => key !== currentOpenKey)
+        .findIndex((key) => levelKeys[key] === levelKeys[currentOpenKey])
+
+      setOpenKeys(
+        keys
+          .filter((_, index) => index !== repeatIndex)
+          .filter((key) => levelKeys[key] <= levelKeys[currentOpenKey])
+      )
+    } else {
+      setOpenKeys(keys)
+    }
+  }
+
+  return (
+    <>
+      <ConditionalComponent condition={isAuthenticated} fallback={children}>
+        <ThemeTransitionLayout>
+          <Layout hasSider>
+            <Sider width={240} theme={theme}>
+              <LogoWrapper>
+                <CustomRow justify={'center'} style={{ height: '100px' }}>
+                  <LogoContainer>
+                    <img src={'/assets/logo.png'} />
+                  </LogoContainer>
+                </CustomRow>
+                <CustomDivider />
+              </LogoWrapper>
+              <div className="menu-container">
+                <Menu
+                  mode={'inline'}
+                  openKeys={openKeys}
+                  selectedKeys={selectedKeys}
+                  items={items}
+                  onOpenChange={handleOpenChange}
+                />
+              </div>
+            </Sider>
+            <BodyContainer>
+              <CustomLayout>
+                <MainHeader />
+
+                <CustomLayout style={{ padding: '0 24px 24px' }}>
+                  <CustomRow width={'100%'} justify={'center'}>
+                    <Content>{children}</Content>
+                  </CustomRow>
+                </CustomLayout>
+              </CustomLayout>
+            </BodyContainer>
+          </Layout>
+        </ThemeTransitionLayout>
+      </ConditionalComponent>
+    </>
+  )
+}
+
+export default RootTemplate
