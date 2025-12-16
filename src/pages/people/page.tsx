@@ -12,6 +12,7 @@ import RoleSelector from 'src/components/RoleSelector'
 import SmartTable from 'src/components/SmartTable'
 import { defaultBreakpoints } from 'src/config/breakpoints'
 import useDebounce from 'src/hooks/use-debounce'
+import { Person } from 'src/services/people/people.types'
 import { useGetPaginatedPeopleMutation } from 'src/services/people/useGetPaginatedPeopleMutation'
 import { usePeopleStore } from 'src/store/people.store'
 import { AdvancedCondition } from 'src/types/general'
@@ -40,9 +41,6 @@ const Page: React.FC = () => {
 
       const filter = getConditionFromForm(FILTER)
 
-      // eslint-disable-next-line no-console
-      console.log({ FILTER, filter })
-
       const condition: AdvancedCondition[] = [...filter]
 
       if (debounce) {
@@ -59,6 +57,10 @@ const Page: React.FC = () => {
   )
 
   useEffect(handleSearch, [handleSearch])
+
+  const handleEdit = (record: Person) => {
+    navigate(location.pathname + '/edit/' + record.PERSON_ID)
+  }
 
   const columns: ColumnsType<unknown> = [
     {
@@ -147,6 +149,7 @@ const Page: React.FC = () => {
       createText={'Nueva Persona'}
       searchPlaceholder={'Buscar personas...'}
       onCreate={() => navigate(location.pathname + '/create')}
+      onEdit={handleEdit}
     />
   )
 }

@@ -1,5 +1,5 @@
 import { Form } from 'antd'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import ConditionalComponent from 'src/components/ConditionalComponent'
 import CustomTable from 'src/components/custom/CustomTable'
 import { Reference } from 'src/services/people/people.types'
@@ -8,23 +8,37 @@ import CustomRow from 'src/components/custom/CustomRow'
 import CustomCol from 'src/components/custom/CustomCol'
 import CustomSearch from 'src/components/custom/CustomSearch'
 import CustomButton from 'src/components/custom/CustomButton'
-import { PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import CustomCard from 'src/components/custom/CustomCard'
 import { ColumnsType } from 'antd/lib/table'
 import formatter from 'src/utils/formatter'
 import { useErrorHandler } from 'src/hooks/use-error-handler'
+import CustomSpace from 'src/components/custom/CustomSpace'
+import CustomDivider from 'src/components/custom/CustomDivider'
+import CustomTooltip from 'src/components/custom/CustomTooltip'
+import { usePeopleStore } from 'src/store/people.store'
 
 interface ReferencesProps {
   onCreate: (data: Reference) => void
 }
 
 const References: React.FC<ReferencesProps> = ({ onCreate }) => {
-  const [errorHandler] = useErrorHandler()
   const [form] = Form.useForm<{ REFERENCE: Reference }>()
+
+  const [errorHandler] = useErrorHandler()
+
   const [modalState, setModalState] = useState(false)
   const [dataSource, setDataSource] = useState<Reference[]>([])
 
+  const { person } = usePeopleStore()
+
   const toggleModalState = () => setModalState(!modalState)
+
+  useEffect(() => {
+    if (person?.PERSON_ID) {
+      setDataSource(person.REFERENCES ?? [])
+    }
+  }, [person])
 
   const handleCreate = async () => {
     try {
@@ -60,12 +74,32 @@ const References: React.FC<ReferencesProps> = ({ onCreate }) => {
       key: 'EMAIL',
       title: 'Correo',
     },
+    {
+      dataIndex: 'ACTIONS',
+      key: 'ACTIONS',
+      title: 'Acciones',
+      width: '5%',
+      align: 'center',
+      render: () => (
+        <CustomSpace
+          direction={'horizontal'}
+          split={<CustomDivider style={{ margin: 0 }} type={'vertical'} />}
+        >
+          <CustomTooltip title={'Editar'}>
+            <CustomButton icon={<EditOutlined />} type={'link'} />
+          </CustomTooltip>
+          <CustomTooltip title={'Remover'}>
+            <CustomButton danger icon={<DeleteOutlined />} type={'link'} />
+          </CustomTooltip>
+        </CustomSpace>
+      ),
+    },
   ]
 
   return (
     <>
       <CustomCard>
-        <CustomRow justify={'end'} gutter={[16, 16]}>
+        <CustomRow justify={'end'} gutter={[16, 16]} gap={10}>
           <CustomCol xs={10}>
             <CustomSearch placeholder={'Buscar referencia...'} />
           </CustomCol>

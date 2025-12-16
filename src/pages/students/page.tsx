@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarOutlined, EyeOutlined } from '@ant-design/icons'
 import CustomRow from 'src/components/custom/CustomRow'
 import CustomCol from 'src/components/custom/CustomCol'
@@ -19,22 +19,19 @@ import CustomTooltip from 'src/components/custom/CustomTooltip'
 import formatter from 'src/utils/formatter'
 import { useGetStudentPaginationMutation } from 'src/services/students/useGetStudentPaginationMutation'
 import { AdvancedCondition } from 'src/types/general'
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  active: { label: 'Activa', color: 'green' },
-  pending: { label: 'Pendiente', color: 'blue' },
-  suspended: { label: 'En revisión', color: 'orange' },
-  completed: { label: 'Finalizada', color: 'purple' },
-  graduated: { label: 'Graduado', color: 'cyan' },
-}
+import { useGetMultiCatalogList } from 'src/hooks/use-get-multi-catalog-list'
+import { useGetCatalog } from 'src/hooks/use-get-catalog'
 
 const StudentsPage: React.FC = () => {
   const [searchKey, setSearchKey] = useState('')
   const [pagination, setPagination] = useState({ page: 1, size: 10 })
+  const [status] = useGetCatalog('ID_LIST_STUDENT_STATES')
   const { list, metadata, selected, drawerOpen, openDrawer, closeDrawer } =
     useStudentStore()
 
   const { mutate: getStudents, isPending } = useGetStudentPaginationMutation()
+
+  useGetMultiCatalogList()
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }))
@@ -58,16 +55,26 @@ const StudentsPage: React.FC = () => {
     })
   }, [getStudents, pagination.page, pagination.size, searchKey])
 
+  const statusConfig = useCallback(
+    (value: string): { label: string; color: string } => {
+      const data = status
+        .filter((item) => item.VALUE === value)
+        .map((item) => ({
+          label: item.LABEL,
+          color: item?.EXTRA?.['color'] as string,
+        }))
+
+      return data?.[0] ?? { label: '', color: '' }
+    },
+    [status]
+  )
+
   const summary = useMemo(() => {
     const total = list.length
-    const actives = list.filter((s) => s.SCHOLARSHIP_STATUS === 'active').length
-    const pending = list.filter(
-      (s) => s.SCHOLARSHIP_STATUS === 'pending'
-    ).length
+    const actives = list.filter((s) => s.SCHOLARSHIP_STATUS === 'A').length
+    const pending = list.filter((s) => s.SCHOLARSHIP_STATUS === 'P').length
     const completed = list.filter(
-      (s) =>
-        s.SCHOLARSHIP_STATUS === 'completed' ||
-        s.SCHOLARSHIP_STATUS === 'graduated'
+      (s) => s.SCHOLARSHIP_STATUS === 'C' || s.SCHOLARSHIP_STATUS === 'G'
     ).length
 
     return { total, actives, pending, completed }
@@ -118,8 +125,8 @@ const StudentsPage: React.FC = () => {
       key: 'STATE',
       title: 'Estado',
       render: (value) => (
-        <CustomTag color={statusConfig[value]?.color}>
-          {statusConfig[value]?.label ?? value}
+        <CustomTag color={statusConfig(value).color}>
+          {status.find((item) => item.VALUE === value)?.LABEL}
         </CustomTag>
       ),
     },
@@ -152,6 +159,8 @@ const StudentsPage: React.FC = () => {
       ),
     },
   ]
+
+  const filter = <>Filtros</>
 
   return (
     <>
@@ -187,6 +196,7 @@ const StudentsPage: React.FC = () => {
         <CustomDivider />
 
         <SmartTable
+          filter={filter}
           dataSource={list}
           columns={columns}
           metadata={metadata}

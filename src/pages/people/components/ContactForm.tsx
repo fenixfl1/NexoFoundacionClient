@@ -1,12 +1,9 @@
-import { DeleteOutlined } from '@ant-design/icons'
 import { Form, FormInstance } from 'antd'
 import React from 'react'
 import ConditionalComponent from 'src/components/ConditionalComponent'
-import CustomButton from 'src/components/custom/CustomButton'
-import CustomCard from 'src/components/custom/CustomCard'
 import CustomCheckbox from 'src/components/custom/CustomCheckbox'
+import CustomCollapseFormList from 'src/components/custom/CustomCollapseFormList'
 import CustomFormItem from 'src/components/custom/CustomFormItem'
-import CustomFormList from 'src/components/custom/CustomFormList'
 import CustomInput from 'src/components/custom/CustomInput'
 import CustomMaskedInput from 'src/components/custom/CustomMaskedInput'
 import CustomRow from 'src/components/custom/CustomRow'
@@ -14,6 +11,7 @@ import CustomSelect from 'src/components/custom/CustomSelect'
 import CustomSpace from 'src/components/custom/CustomSpace'
 import { ContactType, ContactUsage } from 'src/services/contact/contact.types'
 import { PersonPayload } from 'src/services/people/people.types'
+import capitalize from 'src/utils/capitalize'
 
 interface ContactFormProps {
   form: FormInstance<PersonPayload>
@@ -39,112 +37,96 @@ const ContactForm: React.FC<ContactFormProps> = ({ type, form }) => {
   }
 
   return (
-    <CustomFormList
-      name={type}
-      initialValue={[{ TYPE: type, IS_PRIMARY: false }]}
-    >
-      {(fields, { add, remove }) => (
-        <CustomSpace>
-          {fields.map((field) => (
-            <CustomCard>
-              <CustomRow justify={'space-between'} align={'middle'}>
-                <CustomSpace
-                  direction={'horizontal'}
-                  width={'max-content'}
-                  size={'large'}
-                >
-                  <CustomFormItem noStyle hidden name={[field.name, 'TYPE']} />
+    <CustomSpace>
+      <CustomCollapseFormList
+        form={form}
+        name={type}
+        onAdd={(add) => add({ IS_PRIMARY: false, TYPE: type })}
+        addButtonPosition={'bottom'}
+        itemLabel={(index) => capitalize(contacts?.[index]?.USAGE ?? '')}
+        sort={'DESC'}
+      >
+        {(field) => (
+          <CustomRow justify={'space-between'} align={'middle'}>
+            <CustomSpace
+              direction={'horizontal'}
+              width={'max-content'}
+              size={'large'}
+            >
+              <CustomFormItem noStyle hidden name={[field.name, 'TYPE']} />
 
-                  <ConditionalComponent
-                    condition={type === ContactType.EMAIL}
-                    fallback={
-                      <CustomFormItem
-                        label={label[type]}
-                        name={[field.name, 'VALUE']}
-                        rules={[{ required: true }]}
-                      >
-                        <CustomMaskedInput
-                          type={'phone'}
-                          placeholder={'Número de teléfono'}
-                        />
-                      </CustomFormItem>
-                    }
-                  >
-                    <CustomFormItem
-                      label={label[type]}
-                      name={[field.name, 'VALUE']}
-                      rules={[
-                        {
-                          required: true,
-                          type: 'email',
-                        },
-                      ]}
-                    >
-                      <CustomInput />
-                    </CustomFormItem>
-                  </ConditionalComponent>
-
+              <ConditionalComponent
+                condition={type === ContactType.EMAIL}
+                fallback={
                   <CustomFormItem
-                    labelCol={{ span: 8 }}
-                    label={'Uso'}
-                    name={[field.name, 'USAGE']}
+                    label={label[type]}
+                    name={[field.name, 'VALUE']}
                     rules={[{ required: true }]}
                   >
-                    <CustomSelect
-                      style={{ minWidth: '150px' }}
-                      placeholder={'Seleccionar uso'}
-                      width={'100%'}
-                      options={usageOptions[type]}
+                    <CustomMaskedInput
+                      type={'phone'}
+                      placeholder={'(000) 000-0000'}
                     />
                   </CustomFormItem>
-                  <CustomFormItem
-                    style={{ marginLeft: '50px' }}
-                    label={'Principal?'}
-                    name={[field.key, 'IS_PRIMARY']}
-                    labelCol={{ span: 20 }}
-                    valuePropName={'checked'}
-                    rules={[{ required: false }]}
-                  >
-                    <CustomCheckbox
-                      onChange={(e) => {
-                        if (!e.target.checked) return
+                }
+              >
+                <CustomFormItem
+                  label={label[type]}
+                  name={[field.name, 'VALUE']}
+                  rules={[
+                    {
+                      required: true,
+                      type: 'email',
+                    },
+                  ]}
+                >
+                  <CustomInput placeholder={'user@example.com'} />
+                </CustomFormItem>
+              </ConditionalComponent>
 
-                        const allContacts = [...(contacts || [])]
-
-                        const updatedContacts = allContacts.map(
-                          (contact, idx) => {
-                            return {
-                              ...contact,
-                              IS_PRIMARY: idx === field.name,
-                            }
-                          }
-                        )
-
-                        form.setFieldsValue({ [type]: updatedContacts })
-                      }}
-                    />
-                  </CustomFormItem>
-                </CustomSpace>
-                <CustomButton
-                  danger
-                  type={'text'}
-                  icon={<DeleteOutlined />}
-                  onClick={() => remove(field.key)}
+              <CustomFormItem
+                labelCol={{ span: 8 }}
+                label={'Uso'}
+                name={[field.name, 'USAGE']}
+                rules={[{ required: true }]}
+              >
+                <CustomSelect
+                  style={{ minWidth: '150px' }}
+                  placeholder={'Seleccionar uso'}
+                  width={'100%'}
+                  options={usageOptions[type]}
                 />
-              </CustomRow>
-            </CustomCard>
-          ))}
+              </CustomFormItem>
+              <CustomFormItem
+                style={{ marginLeft: '50px' }}
+                label={'Principal?'}
+                name={[field.key, 'IS_PRIMARY']}
+                labelCol={{ span: 20 }}
+                valuePropName={'checked'}
+                rules={[{ required: false }]}
+              >
+                <CustomCheckbox
+                  onChange={(e) => {
+                    if (!e.target.checked) return
 
-          <CustomButton
-            type={'dashed'}
-            block
-            onClick={() => add({ IS_PRIMARY: false, TYPE: type })}
-          >
-            Agregar Contacto
-          </CustomButton>
-        </CustomSpace>
-      )}
-    </CustomFormList>
+                    const allContacts = [...(contacts || [])]
+
+                    const updatedContacts = allContacts.map((contact, idx) => {
+                      return {
+                        ...contact,
+                        IS_PRIMARY: idx === field.name,
+                      }
+                    })
+
+                    form.setFieldsValue({ [type]: updatedContacts })
+                  }}
+                />
+              </CustomFormItem>
+            </CustomSpace>
+          </CustomRow>
+        )}
+      </CustomCollapseFormList>
+    </CustomSpace>
   )
 }
 

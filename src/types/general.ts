@@ -1,4 +1,5 @@
 import { AxiosError, AxiosResponse } from 'axios'
+import { LoaderFunction } from 'react-router-dom'
 import { Mask } from 'react-text-mask'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -23,10 +24,10 @@ export interface Metadata {
 }
 
 export interface PageMetadata {
-  title?: string
+  title?: string | ((params: any) => string)
   public?: boolean
   layout?: string
-  loader?: () => Promise<unknown>
+  loader?: LoaderFunction
   path?: string
   scope?: 0 | 1 | 2 | 3
 }
@@ -125,18 +126,24 @@ export interface GetPayload<T = unknown> {
   size: number
 }
 
-export type MaskType = {
+export type RegularExp =
+  | 'CUDULA'
+  | 'RNC'
+  | 'PHONE_DOM'
+  | 'PHONE_INT'
+  | 'EMAIL'
+  | 'ACCOUNT'
+  | 'PASSPORT'
+  | 'BOOK_FOLIO_ACT'
+
+export interface MaskType {
   pasaporte: Mask
   cedula: Mask
   phone: Mask
-  telefono_internacional: Mask
-  phone_format: Mask
   extension: Mask
   rnc: Mask
-  meses: Mask
   email: Mask
-  complete_phone: Mask
   date: Mask
-  id_cuenta: Mask
   cedula_rnc?: Mask
+  document: Mask
 }

@@ -60,9 +60,13 @@ export function useAppContext(): AppContextProps {
   const context = useContext(AppContext)
 
   if (!context) {
-    throw new Error(
+    // eslint-disable-next-line no-console
+    console.error(
       'useAppContext solo puede ser utilizado dentro del AppContextProvider'
     )
+    // throw new Error(
+    //   'useAppContext solo puede ser utilizado dentro del AppContextProvider'
+    // )
   }
 
   return context

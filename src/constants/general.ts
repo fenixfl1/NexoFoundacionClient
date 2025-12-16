@@ -1,4 +1,4 @@
-import { MaskType } from 'src/types/general'
+import { MaskType, RegularExp } from 'src/types/general'
 
 export const maskedInput: Partial<MaskType> = {
   pasaporte: [
@@ -47,46 +47,19 @@ export const maskedInput: Partial<MaskType> = {
     /\d/,
     /\d/,
   ],
-  phone_format: [
-    /\d/,
-    ' ',
-    /\d/,
-    /\d/,
-    ' ',
-    /\d/,
-    /\d/,
-    /\d/,
-    ' ',
-    /\d/,
-    /\d/,
-    /\d/,
-    ' ',
-    /\d/,
-    /\d/,
-    /\d/,
-  ],
   extension: [/\d/, /\d/, /\d/, /\d/],
   rnc: [/\d/, '-', /\d/, /\d/, '-', /\d/, /\d/, /\d/, /\d/, /\d/, '-', /\d/],
-  meses: [/\d/, /1[0-7]/],
   email: [/^\d^/],
   date: [/\d/, /\d/, '/', /\d/, /\d/, '/', /\d/, /\d/, /\d/, /\d/],
-  id_cuenta: [
-    /\d/,
-    /\d/,
-    /\d/,
-    '-',
-    /\d/,
-    /\d/,
-    /\d/,
-    '-',
-    /\d/,
-    /\d/,
-    /\d/,
-    /\d/,
-    /\d/,
-    /\d/,
-    /\d/,
-    '-',
-    /\d/,
-  ],
+}
+
+export const regexp: Record<RegularExp, [RegExp, string] | RegExp | string> = {
+  CUDULA: [/(\d{3})(\d{7})(\d)/, '$1-$2-$3'],
+  RNC: [/(\d)(\d{2})(\d{5})(\d)/, '$1-$2-$3-$4'],
+  PASSPORT: [/(\w{2})(\d{7})/, '$1-$2'],
+  ACCOUNT: [/(\d{3})(\d{3})(\d{7})(\d)/, '$1-$2-$3-$4'],
+  PHONE_INT: [/(\d{3})(\d{3})(\d{4})(\d{3})/, '$1 $2 $3 $4'],
+  PHONE_DOM: [/(\d{3})(\d{3})(\d{4})/, '($1) $2 $4'],
+  BOOK_FOLIO_ACT: [/(\d{5})(\d{4})(\d+)/, '$1-$2-$3'],
+  EMAIL: '',
 }

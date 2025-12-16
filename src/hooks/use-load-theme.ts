@@ -16,6 +16,7 @@ export function useLoadTheme(): [
 
     try {
       const themeModule = await import(`../config/${theme}.theme.json`)
+
       return themeModule.default as ThemeConfig
     } catch (error) {
       // eslint-disable-next-line no-console

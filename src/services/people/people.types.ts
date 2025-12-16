@@ -1,4 +1,5 @@
 import { Contact } from '../contact/contact.types'
+import { Student } from '../students/student.types'
 
 export interface Person {
   PERSON_ID: number
@@ -44,4 +45,5 @@ export interface PersonPayload {
   ROLE_ID: number
   CONTACTS: Contact[]
   REFERENCES: Reference[]
+  STUDENT?: Student
 }

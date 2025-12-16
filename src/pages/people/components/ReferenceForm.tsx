@@ -1,9 +1,8 @@
-import { App, FormInstance } from 'antd'
+import { FormInstance } from 'antd'
 import React from 'react'
 import CustomCol from 'src/components/custom/CustomCol'
-import CustomDivider from 'src/components/custom/CustomDivider'
 import CustomFormItem from 'src/components/custom/CustomFormItem'
-import CustomForm from 'src/components/custom/CustomFrom'
+import CustomForm from 'src/components/custom/CustomForm'
 import CustomInput from 'src/components/custom/CustomInput'
 import CustomMaskedInput from 'src/components/custom/CustomMaskedInput'
 import CustomModal from 'src/components/custom/CustomModal'
@@ -16,26 +15,22 @@ import {
   formItemLayout,
   labelColFullWidth,
 } from 'src/config/breakpoints'
+import { useCustomModal } from 'src/hooks/use-custom-modal'
+import { useErrorHandler } from 'src/hooks/use-error-handler'
+import { useParams } from 'react-router-dom'
+import { useGetCatalog } from 'src/hooks/use-get-catalog'
+import { useCreateReferenceMutation } from 'src/services/people/useCreateReferenceMutation'
+import { usePeopleStore } from 'src/store/people.store'
+import { Reference } from 'src/services/people/people.types'
+import { CustomParagraph } from 'src/components/custom/CustomParagraph'
+import { normalizeNumbers } from 'src/utils/form-value-normalize'
 
-const relationships = [
-  { label: 'Padre', value: 'padre' },
-  { label: 'Madre', value: 'madre' },
-  { label: 'Hijo(a)', value: 'hijo(a)' },
-  { label: 'Hermano(a)', value: 'hermano(a)' },
-  { label: 'Tío(a)', value: 'tio(a)' },
-  { label: 'Sobrino(a)', value: 'sobrino(a)' },
-  { label: 'Abuelo(a)', value: 'abuelo(a)' },
-  { label: 'Primo(a)', value: 'primo(a)' },
-  { label: 'Amigo(a)', value: 'amigo(a)' },
-  { label: 'Novio(a)', value: 'novio(a)' },
-  { label: 'Esposo(a)', value: 'esposo(a)' },
-  { label: 'Compañero(a) de trabajo', value: 'companero(a)_trabajo' },
-  { label: 'Vecino(a)', value: 'vecino(a)' },
-  { label: 'Conocido(a)', value: 'conocido(a)' },
-]
+interface FormValue {
+  REFERENCE: Reference
+}
 
 interface ReferenceFormProps {
-  form: FormInstance
+  form: FormInstance<FormValue>
   open: boolean
   onClose?: () => void
   onOk?: () => void
@@ -47,9 +42,37 @@ const ReferenceForm: React.FC<ReferenceFormProps> = ({
   onClose,
   onOk,
 }) => {
-  const { modal } = App.useApp()
+  const [errorHandler] = useErrorHandler()
+  const { confirmModal } = useCustomModal()
+
+  const { mutateAsync: createReference, isPending: isCreatePending } =
+    useCreateReferenceMutation()
+
+  const { person } = usePeopleStore()
+
+  const [relationships] = useGetCatalog('ID_LIST_RELATIONSHIPS')
+
+  const { action } = useParams()
+
+  const isEditing = action === 'edit'
+
+  const handleCreate = async () => {
+    try {
+      const values = await form.validateFields()
+
+      values.REFERENCE.PHONE = values.REFERENCE.PHONE.replace(/\D/g, '')
+
+      if (isEditing) {
+        await createReference(values.REFERENCE)
+      }
+      onOk?.()
+    } catch (error) {
+      errorHandler(error)
+    }
+  }
+
   const handleClose = () => {
-    modal.confirm({
+    confirmModal({
       title: 'Confirmación',
       content: 'Seguro que desea cerrar la ventana?',
       onOk: onClose,
@@ -58,15 +81,20 @@ const ReferenceForm: React.FC<ReferenceFormProps> = ({
 
   return (
     <CustomModal
-      title={'Formulario de Referencias'}
-      open={open}
       onCancel={handleClose}
+      onOk={handleCreate}
+      open={open}
+      title={'Formulario de Referencias'}
       width={'45%'}
-      onOk={onOk}
     >
-      <CustomDivider />
-      <CustomSpin>
+      <CustomSpin spinning={isCreatePending}>
         <CustomForm form={form} {...formItemLayout}>
+          <CustomFormItem
+            hidden
+            name={['REFERENCE', 'PERSON_ID']}
+            rules={[{ required: isEditing }]}
+            initialValue={person?.PERSON_ID}
+          />
           <CustomRow justify={'start'}>
             <CustomCol {...defaultBreakpoints}>
               <CustomFormItem
@@ -85,7 +113,10 @@ const ReferenceForm: React.FC<ReferenceFormProps> = ({
               >
                 <CustomSelect
                   placeholder={'Seleccionar Relación'}
-                  options={relationships}
+                  options={relationships.map((item) => ({
+                    label: item.LABEL,
+                    value: item.VALUE,
+                  }))}
                 />
               </CustomFormItem>
             </CustomCol>
@@ -94,6 +125,7 @@ const ReferenceForm: React.FC<ReferenceFormProps> = ({
                 label={'Teléfono'}
                 name={['REFERENCE', 'PHONE']}
                 rules={[{ required: true }]}
+                getValueFromEvent={normalizeNumbers}
               >
                 <CustomMaskedInput
                   type={'phone'}
@@ -126,6 +158,21 @@ const ReferenceForm: React.FC<ReferenceFormProps> = ({
                 {...labelColFullWidth}
               >
                 <CustomTextArea placeholder={'Nota adicional'} />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol xs={24}>
+              <CustomFormItem
+                shouldUpdate
+                label={' '}
+                colon={false}
+                {...labelColFullWidth}
+              >
+                {() => (
+                  <CustomParagraph>
+                    <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
+                  </CustomParagraph>
+                )}
               </CustomFormItem>
             </CustomCol>
           </CustomRow>

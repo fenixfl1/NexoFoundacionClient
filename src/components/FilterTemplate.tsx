@@ -5,7 +5,7 @@ import { FilterOutlined } from '@ant-design/icons'
 import { formItemLayout } from 'src/config/breakpoints'
 import CustomButton from './custom/CustomButton'
 import CustomCol from './custom/CustomCol'
-import CustomForm from './custom/CustomFrom'
+import CustomForm from './custom/CustomForm'
 import CustomRow from './custom/CustomRow'
 
 interface FilterTemplateProps {

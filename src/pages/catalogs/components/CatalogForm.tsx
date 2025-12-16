@@ -1,0 +1,561 @@
+import { CloseOutlined, StopOutlined } from '@ant-design/icons'
+import { Form } from 'antd'
+import React, { useCallback, useEffect } from 'react'
+import ConditionalComponent from 'src/components/ConditionalComponent'
+import CustomButton from 'src/components/custom/CustomButton'
+import CustomCard from 'src/components/custom/CustomCard'
+import CustomCol from 'src/components/custom/CustomCol'
+import CustomCollapseFormList, {
+  RemoveFn,
+} from 'src/components/custom/CustomCollapseFormList'
+import CustomDivider from 'src/components/custom/CustomDivider'
+import CustomFormItem from 'src/components/custom/CustomFormItem'
+import CustomForm from 'src/components/custom/CustomForm'
+import CustomInput from 'src/components/custom/CustomInput'
+import CustomModal from 'src/components/custom/CustomModal'
+import { CustomTitle } from 'src/components/custom/CustomParagraph'
+import CustomRow from 'src/components/custom/CustomRow'
+import CustomSpace from 'src/components/custom/CustomSpace'
+import CustomSpin from 'src/components/custom/CustomSpin'
+import CustomTextArea from 'src/components/custom/CustomTextArea'
+import {
+  defaultBreakpoints,
+  formItemLayout,
+  labelColFullWidth,
+} from 'src/config/breakpoints'
+import { useCustomModal } from 'src/hooks/use-custom-modal'
+import { useCustomNotifications } from 'src/hooks/use-custom-notification'
+import { useErrorHandler } from 'src/hooks/use-error-handler'
+import queryClient from 'src/lib/query-client'
+import { Catalog, CatalogItem } from 'src/services/catalog/catalog.types'
+import { useCreateCatalogueMutation } from 'src/services/catalog/useCreateCatalogueMutation'
+import { useGetOneCatalogQuery } from 'src/services/catalog/useGetOneCatalogQuery'
+import { useUpdateCatalogItemMutation } from 'src/services/catalog/useUpdateCatalogItemMutation'
+import { useUpdateCatalogueMutation } from 'src/services/catalog/useUpdateCatalogueMutation'
+import { useCatalogStore } from 'src/store/catalog.store'
+import styled from 'styled-components'
+
+const Card = styled(CustomCard)`
+  padding: 0 !important;
+`
+
+type CatalogExtraFormValue = {
+  ORDER?: number
+  key?: string
+  value?: string
+}
+
+type CatalogItemFormValue = Partial<Omit<CatalogItem, 'EXTRA'>> & {
+  EXTRA?: CatalogExtraFormValue[]
+}
+
+type CatalogFormValues = Partial<Omit<Catalog, 'ITEMS'>> & {
+  ITEMS?: CatalogItemFormValue[]
+}
+
+const normalizeExtraEntries = (
+  extra?: CatalogItem['EXTRA'] | CatalogExtraFormValue[]
+): CatalogExtraFormValue[] => {
+  if (Array.isArray(extra)) {
+    return extra.map((entry) => ({ ...entry }))
+  }
+
+  if (extra && typeof extra === 'object') {
+    return Object.entries(extra).map(([key, value], index) => ({
+      ORDER: index + 1,
+      key,
+      value: value as string,
+    }))
+  }
+
+  return []
+}
+
+const mapCatalogItemsToFormValues = (
+  items?: Catalog['ITEMS']
+): CatalogItemFormValue[] =>
+  (items ?? []).map((item) => ({
+    ...item,
+    EXTRA: normalizeExtraEntries(item.EXTRA),
+  }))
+
+const cloneCatalogItems = (
+  items: CatalogItemFormValue[] = []
+): CatalogItemFormValue[] =>
+  items.map((item) => ({
+    ...item,
+    EXTRA: item.EXTRA?.map((extra) => ({ ...extra })),
+  }))
+
+const serializeExtraEntries = (
+  entries?: CatalogExtraFormValue[]
+): Record<string, string> =>
+  (entries ?? []).reduce<Record<string, string>>((acc, curr) => {
+    if (!curr?.key) {
+      return acc
+    }
+
+    acc[curr.key] = String(curr.value ?? '')
+    return acc
+  }, {})
+
+const areExtraEntriesEqual = (
+  current?: CatalogExtraFormValue[],
+  initial?: CatalogExtraFormValue[]
+) => {
+  const sanitize = (entries?: CatalogExtraFormValue[]) =>
+    (entries ?? [])
+      .filter((entry) => entry?.key || entry?.value)
+      .map((entry) => ({
+        key: entry?.key ?? '',
+        value: String(entry?.value ?? ''),
+      }))
+      .sort((a, b) =>
+        a.key === b.key
+          ? a.value.localeCompare(b.value)
+          : a.key.localeCompare(b.key)
+      )
+
+  const currentEntries = sanitize(current)
+  const initialEntries = sanitize(initial)
+
+  if (currentEntries.length !== initialEntries.length) {
+    return false
+  }
+
+  return currentEntries.every(
+    (entry, index) =>
+      entry.key === initialEntries[index].key &&
+      entry.value === initialEntries[index].value
+  )
+}
+
+const areCatalogItemsEqual = (
+  current?: CatalogItemFormValue,
+  initial?: CatalogItemFormValue
+) => {
+  if (!current || !initial) {
+    return false
+  }
+
+  const isLabelEqual = (current.LABEL ?? '') === (initial.LABEL ?? '')
+  const isValueEqual = (current.VALUE ?? '') === (initial.VALUE ?? '')
+
+  return (
+    isLabelEqual &&
+    isValueEqual &&
+    areExtraEntriesEqual(current.EXTRA, initial.EXTRA)
+  )
+}
+
+interface CatalogFormProps {
+  open?: boolean
+  onClose?: () => void
+  catalogId?: number
+}
+
+const CatalogForm: React.FC<CatalogFormProps> = ({
+  catalogId,
+  open,
+  onClose,
+}) => {
+  const [errorHandler] = useErrorHandler()
+  const { confirmModal } = useCustomModal()
+  const { successNotification } = useCustomNotifications()
+  const [form] = Form.useForm<CatalogFormValues>()
+  const [initialItems, setInitialItems] = React.useState<
+    CatalogItemFormValue[]
+  >([])
+  const items = Form.useWatch('ITEMS', form) as
+    | CatalogItemFormValue[]
+    | undefined
+
+  const { isFetching: isGetCatalogFetching } = useGetOneCatalogQuery(catalogId)
+  const { mutateAsync: createCatalogue, isPending: isCreatePending } =
+    useCreateCatalogueMutation()
+  const { mutateAsync: updateCatalogue, isPending: isUpdatePending } =
+    useUpdateCatalogueMutation()
+  const { mutateAsync: updateCatalogItem, isPending: isUpdateItemPending } =
+    useUpdateCatalogItemMutation()
+
+  const { catalog } = useCatalogStore()
+
+  const isEditing = !!catalogId
+
+  useEffect(() => {
+    if (catalogId) {
+      const normalizedItems = mapCatalogItemsToFormValues(catalog.ITEMS)
+
+      form.setFieldsValue({
+        ...catalog,
+        ITEMS: normalizedItems,
+      })
+
+      setInitialItems(cloneCatalogItems(normalizedItems))
+    } else {
+      setInitialItems([])
+    }
+  }, [form, catalogId, catalog])
+
+  const handleOnFinish = async () => {
+    try {
+      const { ITEMS = [], ...values } = await form.validateFields()
+      const formItems = ITEMS as CatalogItemFormValue[]
+      const formItemsSnapshot = cloneCatalogItems(formItems)
+
+      const catalogName = (values.NAME ?? '').trim()
+
+      const payload: Catalog = {
+        ...(values as Catalog),
+        KEY: 'cta_' + catalogName.replace(/\s/g, '_').toLowerCase(),
+        ITEMS: formItems.map((item) => ({
+          ...item,
+          EXTRA: serializeExtraEntries(item.EXTRA),
+        })) as Catalog['ITEMS'],
+      }
+
+      let message = 'Catálogo creado exitosamente.'
+      if (payload.CATALOG_ID) {
+        await updateCatalogue(payload)
+        message = `Catálogo con id '${payload.CATALOG_ID}' actualizado exitosamente.`
+        setInitialItems(formItemsSnapshot)
+      } else {
+        await createCatalogue(payload)
+      }
+
+      successNotification({
+        message: 'Operación exitosa',
+        description: message,
+      })
+
+      onClose?.()
+    } catch (error) {
+      errorHandler(error)
+    }
+  }
+
+  const handleSaveItem = async (index: number) => {
+    const currentItems = (form.getFieldValue('ITEMS') ??
+      []) as CatalogItemFormValue[]
+    const item = currentItems?.[index]
+
+    if (!item?.ITEM_ID) {
+      return
+    }
+
+    try {
+      await updateCatalogItem({
+        catalogId,
+        itemId: item.ITEM_ID,
+        values: {
+          LABEL: item?.LABEL,
+          ORDER: item?.ORDER,
+          STATE: item?.STATE,
+          VALUE: item?.VALUE,
+          EXTRA: serializeExtraEntries(item.EXTRA),
+        },
+      })
+
+      setInitialItems((prevItems) => {
+        const updatedItems = cloneCatalogItems(prevItems)
+        const targetIndex = updatedItems.findIndex(
+          (baseItem) => baseItem.ITEM_ID === item.ITEM_ID
+        )
+        const indexToUpdate =
+          targetIndex >= 0 ? targetIndex : Math.min(index, updatedItems.length)
+
+        const clonedItem = cloneCatalogItems([item])[0]
+
+        if (indexToUpdate >= updatedItems.length) {
+          return [...updatedItems, clonedItem]
+        }
+
+        updatedItems[indexToUpdate] = clonedItem
+        return updatedItems
+      })
+    } catch (error) {
+      errorHandler(error)
+    }
+  }
+
+  const handleClose = () => {
+    form.resetFields()
+    setInitialItems([])
+    onClose?.()
+  }
+
+  const hasItemChange = useCallback(
+    (index: number): boolean => {
+      if (!isEditing) {
+        return false
+      }
+
+      const currentItem = items?.[index]
+
+      if (!currentItem) {
+        return false
+      }
+
+      if (!currentItem.ITEM_ID) {
+        return true
+      }
+
+      const baseItem =
+        initialItems.find((item) => item.ITEM_ID === currentItem.ITEM_ID) ??
+        initialItems[index]
+
+      if (!baseItem) {
+        return true
+      }
+
+      return !areCatalogItemsEqual(currentItem, baseItem)
+    },
+    [initialItems, isEditing, items]
+  )
+
+  const handleRuleOut = (index: number) => {
+    const currentItems = (form.getFieldValue('ITEMS') ??
+      []) as CatalogItemFormValue[]
+    const targetItem = currentItems[index]
+
+    if (!targetItem) {
+      return
+    }
+
+    if (!targetItem.ITEM_ID) {
+      const filteredItems = currentItems.filter((_, idx) => idx !== index)
+      form.setFieldsValue({ ITEMS: filteredItems })
+      return
+    }
+
+    const baseItem =
+      initialItems.find((item) => item.ITEM_ID === targetItem.ITEM_ID) ??
+      initialItems[index]
+
+    if (!baseItem) {
+      return
+    }
+
+    const restoredItems = [...currentItems]
+    restoredItems[index] = {
+      ...baseItem,
+      EXTRA: baseItem.EXTRA?.map((extra) => ({ ...extra })),
+    }
+
+    form.setFieldsValue({ ITEMS: restoredItems })
+  }
+
+  const handleRemoveItem = async (index: number, remove: RemoveFn) => {
+    const item = items[index]
+
+    const isActive = item.STATE === 'A'
+
+    if (item?.ITEM_ID) {
+      return confirmModal({
+        title: 'Confirmación',
+        content: (
+          <p>
+            ¿Seguro que desea {isActive ? 'inhabilitar' : 'habilitar'} el item{' '}
+            <strong>"{item.LABEL}"</strong>?
+          </p>
+        ),
+        onOk: async () => {
+          try {
+            await updateCatalogItem({
+              catalogId,
+              itemId: item.ITEM_ID,
+              values: {
+                STATE: item.STATE === 'A' ? 'I' : 'A',
+              },
+            })
+
+            queryClient.invalidateQueries({
+              queryKey: ['catalog', 'get-one-catalog', catalogId],
+            })
+          } catch (error) {
+            errorHandler(error)
+          }
+        },
+      })
+    }
+
+    remove(index)
+  }
+
+  return (
+    <CustomModal
+      onCancel={handleClose}
+      onOk={handleOnFinish}
+      open={open}
+      preventClose
+      title={'Formulario de Catálogo'}
+      width={'50%'}
+    >
+      <CustomSpin
+        spinning={
+          isCreatePending ||
+          isUpdatePending ||
+          isUpdateItemPending ||
+          isGetCatalogFetching
+        }
+      >
+        <CustomForm form={form} {...formItemLayout}>
+          <CustomRow>
+            <CustomFormItem hidden name={'KEY'} />
+            <CustomFormItem hidden name={'CATALOG_ID'} />
+            <CustomCol xs={24}>
+              <CustomFormItem
+                label={'Nombre'}
+                name={'NAME'}
+                rules={[{ required: true }]}
+                {...labelColFullWidth}
+              >
+                <CustomInput placeholder={'Nombre del catálogo'} />
+              </CustomFormItem>
+            </CustomCol>
+            <CustomCol xs={24}>
+              <CustomFormItem
+                label={'Descripción'}
+                name={'DESCRIPTION'}
+                {...labelColFullWidth}
+              >
+                <CustomTextArea placeholder={'Descripción del catálogo'} />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomDivider style={{ margin: '0' }}>
+              <CustomTitle level={4}>Items</CustomTitle>
+            </CustomDivider>
+
+            <CustomCol xs={24}>
+              <CustomFormItem label={'  '} colon={false} {...labelColFullWidth}>
+                <CustomCollapseFormList
+                  form={form}
+                  name={'ITEMS'}
+                  initialValue={[{ EXTRA: [{ ORDER: 1 }] }]}
+                  itemLabel={(index) => items?.[index]?.LABEL}
+                  addText={'Agregar Item'}
+                  onRemove={handleRemoveItem}
+                  removeIcon={(index) => {
+                    const item = items?.[index]
+                    if (item?.STATE === 'I') {
+                      return <StopOutlined style={{ color: '#333' }} />
+                    }
+
+                    return <CloseOutlined />
+                  }}
+                >
+                  {(field) => {
+                    const isActive = items?.[field.name]?.STATE !== 'I'
+
+                    return (
+                      <CustomRow gutter={[16, 16]} key={field.key}>
+                        <CustomCol {...defaultBreakpoints}>
+                          <CustomFormItem
+                            label={'Etiqueta'}
+                            name={[field.name, 'LABEL']}
+                            rules={[{ required: true }]}
+                          >
+                            <CustomInput
+                              disabled={!isActive}
+                              placeholder={'Etiqueta'}
+                            />
+                          </CustomFormItem>
+                        </CustomCol>
+                        <CustomCol {...defaultBreakpoints}>
+                          <CustomFormItem
+                            label={'Valor'}
+                            name={[field.name, 'VALUE']}
+                            rules={[{ required: true }]}
+                          >
+                            <CustomInput
+                              disabled={!isActive}
+                              placeholder={'Valor de la etiqueta'}
+                            />
+                          </CustomFormItem>
+                        </CustomCol>
+
+                        <CustomDivider>
+                          <CustomTitle level={4}>Extras</CustomTitle>
+                        </CustomDivider>
+
+                        <CustomCol xs={24}>
+                          <CustomFormItem
+                            label={'  '}
+                            colon={false}
+                            labelCol={{ span: 3 }}
+                          >
+                            <Card>
+                              <CustomCollapseFormList
+                                form={form}
+                                addButtonPosition={'bottom'}
+                                disabled={!isActive}
+                                name={[field.name, 'EXTRA']}
+                                sort={'desc'}
+                                itemLabel={(index) =>
+                                  items?.[field.name]?.EXTRA?.[index]?.['key']
+                                }
+                              >
+                                {(subField) => (
+                                  <CustomSpace direction={'horizontal'}>
+                                    <CustomFormItem
+                                      hidden
+                                      name={[subField.name, 'ORDER']}
+                                    />
+                                    <CustomFormItem
+                                      name={[subField.name, 'key']}
+                                      rules={[{ required: true }]}
+                                    >
+                                      <CustomInput
+                                        disabled={!isActive}
+                                        placeholder={'Clave'}
+                                      />
+                                    </CustomFormItem>
+                                    <CustomFormItem
+                                      name={[subField.name, 'value']}
+                                      rules={[{ required: true }]}
+                                    >
+                                      <CustomInput
+                                        disabled={!isActive}
+                                        placeholder={'Valor'}
+                                      />
+                                    </CustomFormItem>
+                                  </CustomSpace>
+                                )}
+                              </CustomCollapseFormList>
+                            </Card>
+                          </CustomFormItem>
+                        </CustomCol>
+
+                        <ConditionalComponent
+                          condition={isEditing && hasItemChange(field.name)}
+                        >
+                          <CustomRow justify={'end'} width={'100%'} gap={10}>
+                            <CustomButton
+                              danger
+                              onClick={() => handleRuleOut(field.name)}
+                            >
+                              Descartar
+                            </CustomButton>
+                            <CustomButton
+                              type={'primary'}
+                              onClick={() => handleSaveItem(field.name)}
+                            >
+                              Guardar
+                            </CustomButton>
+                          </CustomRow>
+                        </ConditionalComponent>
+                      </CustomRow>
+                    )
+                  }}
+                </CustomCollapseFormList>
+              </CustomFormItem>
+            </CustomCol>
+          </CustomRow>
+        </CustomForm>
+      </CustomSpin>
+    </CustomModal>
+  )
+}
+
+export default CatalogForm

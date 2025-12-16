@@ -1,9 +1,12 @@
 import { Form, FormInstance } from 'antd'
 import React, { useCallback, useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import ConditionalComponent from 'src/components/ConditionalComponent'
 import CustomCol from 'src/components/custom/CustomCol'
 import CustomDatePicker from 'src/components/custom/CustomDatePicker'
 import CustomFormItem from 'src/components/custom/CustomFormItem'
 import CustomInput from 'src/components/custom/CustomInput'
+import CustomInputNumber from 'src/components/custom/CustomInputNumber'
 import CustomMaskedInput from 'src/components/custom/CustomMaskedInput'
 import CustomRadioGroup from 'src/components/custom/CustomRadioGroup'
 import CustomRow from 'src/components/custom/CustomRow'
@@ -13,6 +16,7 @@ import useDebounce from 'src/hooks/use-debounce'
 import { PersonPayload } from 'src/services/people/people.types'
 import { useGetRolePaginationMutation } from 'src/services/roles/useGetRolePaginationMutation'
 import { useRoleStore } from 'src/store/role.store'
+import { normalizeNumbers } from 'src/utils/form-value-normalize'
 
 interface GeneralDataProps {
   form: FormInstance<PersonPayload>
@@ -21,6 +25,8 @@ interface GeneralDataProps {
 const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
   const roleId = Form.useWatch('ROLE_ID', form)
 
+  const { action } = useParams()
+
   const [searchKey, setSearchKey] = useState('')
   const debounce = useDebounce(searchKey)
 
@@ -28,6 +34,8 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
 
   const { mutate: getRoles, isPending: isGetRolesPending } =
     useGetRolePaginationMutation()
+
+  const isEditing = action === 'edit'
 
   const handleSearchRoles = useCallback(() => {
     getRoles({
@@ -57,14 +65,27 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
           label={'Cédula'}
           name={'IDENTITY_DOCUMENT'}
           rules={[{ required: true }]}
+          getValueFromEvent={normalizeNumbers}
+          valuePropName={'value'}
         >
           <CustomMaskedInput
-            placeholder={'Documento de identidad'}
-            type={'cedula'}
+            // readOnly={isEditing}
+            placeholder="000-0000000-0"
+            type={'document'}
           />
         </CustomFormItem>
       </CustomCol>
-      <CustomCol {...defaultBreakpoints} />
+      <CustomCol {...defaultBreakpoints}>
+        <ConditionalComponent condition={isEditing}>
+          <CustomFormItem
+            label={'Código'}
+            name={'PERSON_ID'}
+            rules={[{ required: true }]}
+          >
+            <CustomInputNumber width={null} readOnly />
+          </CustomFormItem>
+        </ConditionalComponent>
+      </CustomCol>
       <CustomCol {...defaultBreakpoints}>
         <CustomFormItem
           label={'Nombres'}
@@ -130,6 +151,7 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
           rules={[{ required: roleId !== 2 }]}
         >
           <CustomInput
+            readOnly={isEditing}
             disabled={roleId === 2}
             placeholder={'Nombre de Usuario'}
           />

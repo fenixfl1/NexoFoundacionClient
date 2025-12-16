@@ -1,9 +1,19 @@
-export type ScholarshipStatus =
-  | 'pending'
-  | 'active'
-  | 'suspended'
-  | 'completed'
-  | 'graduated'
+// export type ScholarshipStatus =
+//   | 'pending'
+//   | 'active'
+//   | 'suspended'
+//   | 'completed'
+//   | 'graduated'
+
+export enum ScholarshipStatus {
+  PENDING = 'P',
+  ACTIVE = 'A',
+  SUSPENDED = 'S',
+  COMPLETED = 'C',
+  GRADUATED = 'G',
+}
+
+export type StudentPayload = Partial<Student>
 
 export interface Student {
   STUDENT_ID: number

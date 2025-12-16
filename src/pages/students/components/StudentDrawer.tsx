@@ -28,13 +28,10 @@ interface StudentDrawerProps {
   open: boolean
   student?: Student
   onClose: () => void
-  statusColors: Record<
-    string,
-    {
-      label: string
-      color: string
-    }
-  >
+  statusColors: (value: string) => {
+    label: string
+    color: string
+  }
 }
 
 const StudentDrawer: React.FC<StudentDrawerProps> = ({
@@ -54,7 +51,7 @@ const StudentDrawer: React.FC<StudentDrawerProps> = ({
   }
 
   const initials = `${student.NAME.charAt(0)}${student.LAST_NAME.charAt(0)}`
-  const status = statusColors[student.SCHOLARSHIP_STATUS] ?? {
+  const status = statusColors(student.SCHOLARSHIP_STATUS) ?? {
     label: student.SCHOLARSHIP_STATUS,
     color: 'blue',
   }
@@ -221,6 +218,7 @@ const StudentDrawer: React.FC<StudentDrawerProps> = ({
             label: <SectionTitle level={4}>Contactos</SectionTitle>,
             children: (
               <CustomTable
+                bordered={false}
                 columns={contactColumns}
                 dataSource={contacts}
                 pagination={false}

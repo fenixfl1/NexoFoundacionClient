@@ -10,9 +10,10 @@ interface UsePeopleStore {
   setProfileVisibilitySate: (state: boolean) => void
   setPeople: (payload: ReturnPayload<Person>) => void
   setPerson: (person: Person) => void
+  reset: () => void
 }
 
-export const usePeopleStore = create<UsePeopleStore>((set) => ({
+const initialState = {
   person: <Person>{},
   peopleList: [],
   profileVisibilityState: false,
@@ -24,6 +25,11 @@ export const usePeopleStore = create<UsePeopleStore>((set) => ({
     totalRows: 0,
     links: undefined,
   },
+}
+
+export const usePeopleStore = create<UsePeopleStore>((set) => ({
+  ...initialState,
+  reset: () => set(initialState),
   setProfileVisibilitySate: (state) => set({ profileVisibilityState: state }),
   setPerson: (person) => set({ person }),
   setPeople: ({ data, metadata }) =>

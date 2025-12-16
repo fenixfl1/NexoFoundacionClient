@@ -25,8 +25,6 @@ function formatter(props: Formatter) {
   const originalValue = prefix ? `${prefix} ${value}` : `${value}`
   if (format) {
     if (format === 'phone') {
-      // eslint-disable-next-line no-console
-      console.log({ value })
       return value == 'null' || !value
         ? 'N/A'
         : originalValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import CustomForm from 'src/components/custom/CustomFrom'
+import CustomForm from 'src/components/custom/CustomForm'
 import CustomRow from 'src/components/custom/CustomRow'
 import {
   defaultBreakpoints,

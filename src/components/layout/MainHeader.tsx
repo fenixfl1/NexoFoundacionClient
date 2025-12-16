@@ -19,6 +19,7 @@ import { useCustomModal } from 'src/hooks/use-custom-modal'
 import { usePeopleStore } from 'src/store/people.store'
 import CustomPopover from '../custom/CustomPopover'
 import CustomDivider from '../custom/CustomDivider'
+import { useGeneralStore } from 'src/store/general.store'
 
 const Header = styled(CustomHeader)<{ width: string | number }>`
   display: flex;
@@ -43,6 +44,7 @@ const MainHeader: React.FC<MainHeaderProps> = ({
 
   const { setProfileVisibilitySate, profileVisibilityState } = usePeopleStore()
   const { currenMenuOption, reset } = useMenuOptionStore()
+  const { title } = useGeneralStore()
 
   useEffect(() => {
     if (!profileVisibilityState && searchParams.get('username')) {
@@ -102,8 +104,8 @@ const MainHeader: React.FC<MainHeaderProps> = ({
           align={'middle'}
         >
           <CustomCol xs={12}>
-            <CustomTitle level={3} style={{ margin: 'auto', color: 'white' }}>
-              {currenMenuOption?.DESCRIPTION}
+            <CustomTitle level={3} style={{ margin: 'auto' }}>
+              {title || currenMenuOption?.DESCRIPTION}
             </CustomTitle>
           </CustomCol>
 
@@ -116,7 +118,7 @@ const MainHeader: React.FC<MainHeaderProps> = ({
                 src={getAvatarLink()}
               />
             </CustomPopover>
-            <CustomText strong style={{ color: '#ffffff' }}>
+            <CustomText strong>
               {capitalize(
                 getSessionInfo().name || getSessionInfo().username || ''
               )}

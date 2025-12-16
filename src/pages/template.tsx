@@ -11,13 +11,19 @@ import { useAppContext } from 'src/context/AppContext'
 import { useGetUserMenuOptionsQuery } from 'src/services/menu-options/useGetUserMenuOptionsQuery'
 import { MenuOption } from 'src/services/menu-options/menu-options.types'
 import SVGReader from 'src/components/SVGReader'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import {
+  useNavigate,
+  useNavigation,
+  useParams,
+  useSearchParams,
+} from 'react-router'
 import { useMenuOptionStore } from 'src/store/menu-options.store'
 import { findParentKeys } from 'src/utils/find-parent-keys'
 import { MenuProps } from 'antd'
 import CustomDivider from 'src/components/custom/CustomDivider'
 import { usePeopleStore } from 'src/store/people.store'
 import MainHeader from 'src/components/layout/MainHeader'
+import CustomSpin from 'src/components/custom/CustomSpin'
 
 const LogoWrapper = styled.div`
   position: sticky;
@@ -95,6 +101,7 @@ const Layout = styled(CustomLayout)`
 const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
   const { activityId } = useParams()
   const navigate = useNavigate()
+  const navigation = useNavigation()
   const { isAuthenticated, theme } = useAppContext()
   const [searchParams] = useSearchParams()
 
@@ -208,38 +215,43 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
     <>
       <ConditionalComponent condition={isAuthenticated} fallback={children}>
         <ThemeTransitionLayout>
-          <Layout hasSider>
-            <Sider width={240} theme={theme}>
-              <LogoWrapper>
-                <CustomRow justify={'center'} style={{ height: '100px' }}>
-                  <LogoContainer>
-                    <img src={'/assets/logo.png'} />
-                  </LogoContainer>
-                </CustomRow>
-                <CustomDivider />
-              </LogoWrapper>
-              <div className="menu-container">
-                <Menu
-                  mode={'inline'}
-                  openKeys={openKeys}
-                  selectedKeys={selectedKeys}
-                  items={items}
-                  onOpenChange={handleOpenChange}
-                />
-              </div>
-            </Sider>
-            <BodyContainer>
-              <CustomLayout>
-                <MainHeader />
-
-                <CustomLayout style={{ padding: '0 24px 24px' }}>
-                  <CustomRow width={'100%'} justify={'center'}>
-                    <Content>{children}</Content>
+          <CustomSpin
+            tip={'Cargando...'}
+            spinning={navigation.state === 'loading'}
+          >
+            <Layout hasSider>
+              <Sider width={240} theme={theme}>
+                <LogoWrapper>
+                  <CustomRow justify={'center'} style={{ height: '100px' }}>
+                    <LogoContainer>
+                      <img src={'/assets/logo.png'} />
+                    </LogoContainer>
                   </CustomRow>
+                  <CustomDivider />
+                </LogoWrapper>
+                <div className="menu-container">
+                  <Menu
+                    mode={'inline'}
+                    openKeys={openKeys}
+                    selectedKeys={selectedKeys}
+                    items={items}
+                    onOpenChange={handleOpenChange}
+                  />
+                </div>
+              </Sider>
+              <BodyContainer>
+                <CustomLayout>
+                  <MainHeader />
+
+                  <CustomLayout style={{ padding: '0 24px 24px' }}>
+                    <CustomRow width={'100%'} justify={'center'}>
+                      <Content>{children}</Content>
+                    </CustomRow>
+                  </CustomLayout>
                 </CustomLayout>
-              </CustomLayout>
-            </BodyContainer>
-          </Layout>
+              </BodyContainer>
+            </Layout>
+          </CustomSpin>
         </ThemeTransitionLayout>
       </ConditionalComponent>
     </>
