@@ -1,8 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import CustomRow from 'src/components/custom/CustomRow'
-import CustomCol from 'src/components/custom/CustomCol'
-import CustomCard from 'src/components/custom/CustomCard'
-import CustomStatistic from 'src/components/custom/CustomStatistic'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import CustomDivider from 'src/components/custom/CustomDivider'
 import CustomSpin from 'src/components/custom/CustomSpin'
 import SmartTable from 'src/components/SmartTable'
@@ -13,58 +9,83 @@ import CustomTooltip from 'src/components/custom/CustomTooltip'
 import { ColumnsType } from 'antd/lib/table'
 import { RequestItem } from 'src/services/requests/request.types'
 import { useRequestStore } from 'src/store/requests.store'
-import { CustomText } from 'src/components/custom/CustomParagraph'
+import { CustomText, CustomTitle } from 'src/components/custom/CustomParagraph'
 import { EyeOutlined } from '@ant-design/icons'
-import RequestForm from './components/RequestForm'
+import RequestDetail from './components/RequestDetail'
 import formatter from 'src/utils/formatter'
 import { useGetRequestPaginationMutation } from 'src/services/requests/useGetRequestPaginationMutation'
 import { AdvancedCondition } from 'src/types/general'
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  new: { label: 'Nueva', color: 'blue' },
-  in_review: { label: 'En revisión', color: 'gold' },
-  approved: { label: 'Aprobada', color: 'green' },
-  rejected: { label: 'Rechazada', color: 'red' },
-  scheduled: { label: 'Cita programada', color: 'purple' },
-}
+import RequestForm from './components/RequestForm'
+import { useGetMultiCatalogList } from 'src/hooks/use-get-multi-catalog-list'
+import { useGetCatalog } from 'src/hooks/use-get-catalog'
+import ModuleSummary from 'src/components/ModuleSummary'
+import useDebounce from 'src/hooks/use-debounce'
+import ConditionalComponent from 'src/components/ConditionalComponent'
 
 const RequestsPage: React.FC = () => {
+  const [modalState, setModalState] = useState<boolean>()
   const [searchKey, setSearchKey] = useState('')
-  const [pagination, setPagination] = useState({ page: 1, size: 10 })
-  const { list, metadata, selected, drawerOpen, openDrawer, closeDrawer } =
-    useRequestStore()
+  const debounce = useDebounce(searchKey)
+  const {
+    requests,
+    summary,
+    metadata,
+    selected,
+    drawerOpen,
+    openDrawer,
+    closeDrawer,
+  } = useRequestStore()
   const { mutate: getRequests, isPending } = useGetRequestPaginationMutation()
+  useGetMultiCatalogList()
 
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, page: 1 }))
-  }, [searchKey])
+  const statusConfig = {}
 
-  useEffect(() => {
-    const condition: AdvancedCondition[] = []
+  const [status] = useGetCatalog('ID_LIST_REQUEST_STATUS')
+  const [requestTypes] = useGetCatalog('ID_LIST_REQUEST_TYPES')
 
-    if (searchKey) {
-      condition.push({
-        field: 'FILTER',
-        operator: 'LIKE',
-        value: searchKey,
-      })
-    }
+  const loadRequests = useCallback(
+    (page = metadata.currentPage, size = metadata.pageSize) => {
+      const condition: AdvancedCondition[] = []
 
-    getRequests({
-      page: pagination.page,
-      size: pagination.size,
-      condition,
-    })
-  }, [getRequests, pagination.page, pagination.size, searchKey])
+      if (debounce) {
+        condition.push({
+          field: 'FILTER',
+          operator: 'LIKE',
+          value: debounce,
+        })
+      }
 
-  const summary = useMemo(() => {
-    const total = list.length
-    const newOnes = list.filter((r) => r.STATUS === 'new').length
-    const inReview = list.filter((r) => r.STATUS === 'in_review').length
-    const scheduled = list.filter((r) => r.STATUS === 'scheduled').length
+      getRequests({ page, size, condition })
+    },
+    [getRequests, debounce]
+  )
 
-    return { total, newOnes, inReview, scheduled }
-  }, [list])
+  useEffect(loadRequests, [loadRequests])
+
+  const statusSummary = useMemo(() => {
+    const summaryMap = status.reduce<
+      Record<
+        string,
+        {
+          key: string
+          title: string
+          value: number | string
+        }
+      >
+    >((acc, item) => {
+      acc[item.VALUE] = {
+        key: item.VALUE,
+        title: item.LABEL ?? item.VALUE,
+        value: summary[item.VALUE],
+      }
+
+      return acc
+    }, {})
+
+    return Object.values(summaryMap)
+  }, [summary, status])
+
+  const toggleModalState = () => setModalState(!modalState)
 
   const columns: ColumnsType<RequestItem> = [
     {
@@ -74,7 +95,7 @@ const RequestsPage: React.FC = () => {
       render: (_, record) => (
         <CustomSpace direction="vertical" size={0}>
           <CustomText strong>
-            {record.STUDENT_NAME} {record.STUDENT_LAST_NAME}
+            {record.NAME} {record.LAST_NAME}
           </CustomText>
           <CustomText type="secondary">
             {formatter({
@@ -100,17 +121,17 @@ const RequestsPage: React.FC = () => {
       dataIndex: 'REQUEST_TYPE',
       key: 'type',
       title: 'Tipo',
-      render: (value) => <CustomTag>{value}</CustomTag>,
-    },
-    {
-      dataIndex: 'STATUS',
-      key: 'status',
-      title: 'Estado',
-      render: (value) => (
-        <CustomTag color={statusConfig[value]?.color}>
-          {statusConfig[value]?.label ?? value}
-        </CustomTag>
-      ),
+      render: (value) => {
+        const item = requestTypes.find((item) => item.VALUE === value)
+
+        return (
+          <CustomTooltip title={item?.EXTRA?.description}>
+            <CustomTag color={item?.EXTRA?.color}>
+              {item?.LABEL ?? value}
+            </CustomTag>
+          </CustomTooltip>
+        )
+      },
     },
     {
       dataIndex: 'NEXT_APPOINTMENT',
@@ -118,6 +139,22 @@ const RequestsPage: React.FC = () => {
       title: 'Cita programada',
       render: (value) =>
         value ? formatter({ value, format: 'date' }) : 'No programada',
+    },
+    {
+      dataIndex: 'STATUS',
+      key: 'status',
+      title: 'Estado',
+      render: (value) => {
+        const item = status.find((item) => item.VALUE === value)
+
+        return (
+          <CustomTooltip title={item?.EXTRA?.description}>
+            <CustomTag color={item?.EXTRA?.color}>
+              {item?.LABEL ?? value}
+            </CustomTag>
+          </CustomTooltip>
+        )
+      },
     },
     {
       dataIndex: 'actions',
@@ -139,61 +176,48 @@ const RequestsPage: React.FC = () => {
   return (
     <>
       <CustomSpin spinning={isPending}>
-        <CustomRow gutter={[16, 16]}>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic
-                title="Solicitudes nuevas"
-                value={summary.newOnes}
-              />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic title="En revisión" value={summary.inReview} />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic
-                title="Citas programadas"
-                value={summary.scheduled}
-              />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic title="Total" value={summary.total} />
-            </CustomCard>
-          </CustomCol>
-        </CustomRow>
+        <ModuleSummary
+          total={metadata.totalRows}
+          dataSource={statusSummary}
+          title={
+            <CustomDivider>
+              <CustomTitle level={5}>Resumen de solicitudes </CustomTitle>
+            </CustomDivider>
+          }
+        />
         <CustomDivider />
 
         <SmartTable
-          dataSource={list}
+          showStates={false}
+          dataSource={requests}
           columns={columns}
           metadata={metadata}
-          createText="Registrar solicitud"
+          createText={'Nueva solicitud'}
           showActions={false}
-          onCreate={() => openDrawer(undefined)}
+          onCreate={toggleModalState}
           onEdit={() => null}
           onUpdate={() => null}
           onSearch={setSearchKey}
-          onChange={(page, size) =>
-            setPagination({
-              page: page ?? pagination.page,
-              size: size ?? pagination.size,
-            })
-          }
+          onChange={loadRequests}
         />
       </CustomSpin>
 
-      <RequestForm
-        open={drawerOpen}
-        request={selected}
-        onClose={closeDrawer}
-        statusColors={statusConfig}
-      />
+      <ConditionalComponent condition={drawerOpen}>
+        <RequestDetail
+          open={drawerOpen}
+          request={selected}
+          onClose={closeDrawer}
+          statusColors={statusConfig}
+        />
+      </ConditionalComponent>
+
+      <ConditionalComponent condition={modalState}>
+        <RequestForm
+          open={modalState}
+          onCancel={toggleModalState}
+          onSuccess={loadRequests}
+        />
+      </ConditionalComponent>
     </>
   )
 }

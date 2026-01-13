@@ -1,9 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarOutlined, EyeOutlined } from '@ant-design/icons'
-import CustomRow from 'src/components/custom/CustomRow'
-import CustomCol from 'src/components/custom/CustomCol'
-import CustomCard from 'src/components/custom/CustomCard'
-import CustomStatistic from 'src/components/custom/CustomStatistic'
 import CustomDivider from 'src/components/custom/CustomDivider'
 import CustomSpin from 'src/components/custom/CustomSpin'
 import SmartTable from 'src/components/SmartTable'
@@ -21,13 +17,21 @@ import { useGetStudentPaginationMutation } from 'src/services/students/useGetStu
 import { AdvancedCondition } from 'src/types/general'
 import { useGetMultiCatalogList } from 'src/hooks/use-get-multi-catalog-list'
 import { useGetCatalog } from 'src/hooks/use-get-catalog'
+import ModuleSummary from 'src/components/ModuleSummary'
 
 const StudentsPage: React.FC = () => {
   const [searchKey, setSearchKey] = useState('')
   const [pagination, setPagination] = useState({ page: 1, size: 10 })
   const [status] = useGetCatalog('ID_LIST_STUDENT_STATES')
-  const { list, metadata, selected, drawerOpen, openDrawer, closeDrawer } =
-    useStudentStore()
+  const {
+    students,
+    summary,
+    metadata,
+    selected,
+    drawerOpen,
+    openDrawer,
+    closeDrawer,
+  } = useStudentStore()
 
   const { mutate: getStudents, isPending } = useGetStudentPaginationMutation()
 
@@ -69,17 +73,28 @@ const StudentsPage: React.FC = () => {
     [status]
   )
 
-  const summary = useMemo(() => {
-    const total = list.length
-    const actives = list.filter((s) => s.SCHOLARSHIP_STATUS === 'A').length
-    const pending = list.filter((s) => s.SCHOLARSHIP_STATUS === 'P').length
-    const completed = list.filter(
-      (s) => s.SCHOLARSHIP_STATUS === 'C' || s.SCHOLARSHIP_STATUS === 'G'
-    ).length
+  const summaryData = useMemo(() => {
+    const summaryMap = status.reduce<
+      Record<
+        string,
+        {
+          key: string
+          title: string
+          value: number | string
+        }
+      >
+    >((acc, item) => {
+      acc[item.VALUE] = {
+        key: item.VALUE,
+        title: item.LABEL ?? item.VALUE,
+        value: summary?.[item.VALUE] ?? 0,
+      }
 
-    return { total, actives, pending, completed }
-  }, [list])
+      return acc
+    }, {})
 
+    return Object.values(summaryMap)
+  }, [status, summary])
   const columns: ColumnsType<Student> = [
     {
       dataIndex: 'NAME',
@@ -165,39 +180,19 @@ const StudentsPage: React.FC = () => {
   return (
     <>
       <CustomSpin spinning={isPending}>
-        <CustomRow gutter={[16, 16]}>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic
-                title="Becarios activos"
-                value={summary.actives}
-              />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic title="Pendientes" value={summary.pending} />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic
-                title="Completadas/Graduados"
-                value={summary.completed}
-              />
-            </CustomCard>
-          </CustomCol>
-          <CustomCol xs={24} lg={6}>
-            <CustomCard>
-              <CustomStatistic title="Total inscritos" value={summary.total} />
-            </CustomCard>
-          </CustomCol>
-        </CustomRow>
+        <ModuleSummary
+          total={metadata.totalRows}
+          dataSource={summaryData}
+          // title={
+          //   <CustomDivider>
+          //     <CustomText strong>Resumen de becarios</CustomText>
+          //   </CustomDivider>
+          // }
+        />
         <CustomDivider />
-
         <SmartTable
           filter={filter}
-          dataSource={list}
+          dataSource={students}
           columns={columns}
           metadata={metadata}
           createText="Agregar becario"

@@ -116,8 +116,12 @@ export interface AdvancedCondition<T = any> {
 
 export interface ReturnPayload<T> {
   data: T[]
-  metadata: { pagination: Metadata }
   message?: string
+  metadata: {
+    [key: string]: unknown
+    summary?: Record<string, string | number>
+    pagination: Metadata
+  }
 }
 
 export interface GetPayload<T = unknown> {

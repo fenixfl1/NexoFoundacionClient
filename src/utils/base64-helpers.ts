@@ -3,9 +3,13 @@
 export function getBase64<T = string>(file: any): Promise<T> {
   if (!file) return Promise.resolve('') as any
 
+  const blob = file?.originFileObj ?? file
+
+  // if (!(blob instanceof Blob)) return Promise.resolve('') as any
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.readAsDataURL(file?.originFileObj as any)
+    reader.readAsDataURL(blob)
     reader.onload = () => resolve(reader.result as never)
     reader.onerror = (error) => reject(error)
   })

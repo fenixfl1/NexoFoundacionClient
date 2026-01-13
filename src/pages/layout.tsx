@@ -7,7 +7,7 @@ export const layoutMeta = { titleTemplate: 'Nexo Foundation · %s' }
 const RootLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
   const { roleId } = getSessionInfo()
 
-  if (Number(roleId) === 3) {
+  if (isNaN(Number(roleId))) {
     throw new AppError('No tienes permisos para acceder a esta vista.', {
       code: '403',
     })

@@ -1,14 +1,11 @@
-export type RequestStatus =
-  | 'new'
-  | 'in_review'
-  | 'approved'
-  | 'rejected'
-  | 'scheduled'
+export type RequestStatus = 'P' | 'R' | 'A' | 'D' | 'C'
 
 export interface RequestItem {
   REQUEST_ID: number
-  STUDENT_NAME: string
-  STUDENT_LAST_NAME: string
+  PERSON_ID?: number
+  STUDENT_ID?: number | null
+  NAME: string
+  LAST_NAME: string
   IDENTITY_DOCUMENT: string
   UNIVERSITY: string
   CAREER: string
@@ -23,3 +20,22 @@ export interface RequestItem {
   NEXT_APPOINTMENT?: string
   NOTES?: string
 }
+
+export interface RequestRecord {
+  REQUEST_ID: number
+  PERSON_ID: number
+  STUDENT_ID?: number | null
+  REQUEST_TYPE: string
+  STATUS: RequestStatus
+  ASSIGNED_COORDINATOR?: string | null
+  NEXT_APPOINTMENT?: string | null
+  COHORT?: string | null
+  NOTES?: string | null
+  CREATED_AT?: string
+  UPDATED_AT?: string
+}
+
+export type CreateRequestPayload = Omit<
+  RequestRecord,
+  'REQUEST_ID' | 'CREATED_AT' | 'UPDATED_AT'
+>

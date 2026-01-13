@@ -13,7 +13,6 @@ import CustomModal from './CustomModal'
 const Button = styled(CustomButton)`
   padding: 10px !important;
   width: 100% !important;
-  background-color: ${({ theme }) => theme.textColor} !important;
 
   .ant-upload-icon {
     width: 100%;

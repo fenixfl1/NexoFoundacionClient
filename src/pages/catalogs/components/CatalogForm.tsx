@@ -3,7 +3,6 @@ import { Form } from 'antd'
 import React, { useCallback, useEffect } from 'react'
 import ConditionalComponent from 'src/components/ConditionalComponent'
 import CustomButton from 'src/components/custom/CustomButton'
-import CustomCard from 'src/components/custom/CustomCard'
 import CustomCol from 'src/components/custom/CustomCol'
 import CustomCollapseFormList, {
   RemoveFn,
@@ -33,11 +32,6 @@ import { useGetOneCatalogQuery } from 'src/services/catalog/useGetOneCatalogQuer
 import { useUpdateCatalogItemMutation } from 'src/services/catalog/useUpdateCatalogItemMutation'
 import { useUpdateCatalogueMutation } from 'src/services/catalog/useUpdateCatalogueMutation'
 import { useCatalogStore } from 'src/store/catalog.store'
-import styled from 'styled-components'
-
-const Card = styled(CustomCard)`
-  padding: 0 !important;
-`
 
 type CatalogExtraFormValue = {
   ORDER?: number
@@ -485,7 +479,7 @@ const CatalogForm: React.FC<CatalogFormProps> = ({
                             colon={false}
                             labelCol={{ span: 3 }}
                           >
-                            <Card>
+                            <>
                               <CustomCollapseFormList
                                 form={form}
                                 addButtonPosition={'bottom'}
@@ -523,7 +517,7 @@ const CatalogForm: React.FC<CatalogFormProps> = ({
                                   </CustomSpace>
                                 )}
                               </CustomCollapseFormList>
-                            </Card>
+                            </>
                           </CustomFormItem>
                         </CustomCol>
 

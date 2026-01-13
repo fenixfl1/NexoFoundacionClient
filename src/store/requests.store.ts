@@ -3,10 +3,11 @@ import { Metadata, ReturnPayload } from 'src/types/general'
 import { RequestItem } from 'src/services/requests/request.types'
 
 interface UseRequestStore {
-  list: RequestItem[]
+  requests: RequestItem[]
   metadata: Metadata
   selected?: RequestItem
   drawerOpen: boolean
+  summary: Record<string, string | number>
   setRequests: (payload: ReturnPayload<RequestItem>) => void
   openDrawer: (request?: RequestItem) => void
   closeDrawer: () => void
@@ -22,15 +23,17 @@ const defaultMetadata: Metadata = {
 }
 
 export const useRequestStore = create<UseRequestStore>((set) => ({
-  list: [],
+  requests: [],
   metadata: defaultMetadata,
   selected: undefined,
   drawerOpen: false,
-  setRequests: ({ data, metadata }) =>
-    set({
-      list: data,
-      metadata: metadata?.pagination ?? defaultMetadata,
-    }),
+  summary: {},
   openDrawer: (request) => set({ drawerOpen: true, selected: request }),
   closeDrawer: () => set({ drawerOpen: false, selected: undefined }),
+  setRequests: ({ data, metadata }) =>
+    set({
+      requests: data,
+      metadata: metadata?.pagination ?? defaultMetadata,
+      summary: metadata.summary,
+    }),
 }))

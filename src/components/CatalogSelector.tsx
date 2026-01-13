@@ -27,11 +27,6 @@ const CatalogSelector: React.FC<CatalogSelectorProps> = ({
       .map((item) => ({ label: item.LABEL, value: item.VALUE }))
   }, [options, filter])
 
-  React.useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log({ options })
-  }, [options])
-
   return (
     <CustomSelect
       allowClear={allowClear}

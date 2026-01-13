@@ -24,6 +24,8 @@ import CustomDivider from 'src/components/custom/CustomDivider'
 import { usePeopleStore } from 'src/store/people.store'
 import MainHeader from 'src/components/layout/MainHeader'
 import CustomSpin from 'src/components/custom/CustomSpin'
+import { CustomText } from 'src/components/custom/CustomParagraph'
+import { getCurrentRoleBasePath } from 'src/utils/role-path'
 
 const LogoWrapper = styled.div`
   position: sticky;
@@ -152,27 +154,34 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
     if (option?.CHILDREN?.length) return
 
     setCurrentMenuOption(option)
-    navigate(option.PATH)
+    const basePath = getCurrentRoleBasePath()
+    navigate(`${basePath}${option.PATH}`)
   }
 
   const getSubMenu = (options: MenuOption[]): MenuProps['items'] => {
     return options?.map((option: MenuOption) => {
+      const hasChildren = !!option.CHILDREN?.length
+
       return {
         key: option?.MENU_OPTION_ID,
         title: option.NAME,
         type: option.TYPE,
         icon: <SVGReader svg={option.ICON} />,
-        onClick: option?.CHILDREN?.length
-          ? undefined
-          : () => handleClickOption(option),
-        children: option?.CHILDREN?.length
-          ? getSubMenu(option?.CHILDREN)
-          : undefined,
+        onClick: hasChildren ? undefined : () => handleClickOption(option),
+        children: hasChildren ? getSubMenu(option?.CHILDREN) : undefined,
         label: (
-          <div style={{ width: '100%', display: 'block' }}>{option.NAME}</div>
+          // <div
+          //   style={{
+          //     width: '100%',
+          //     display: 'block',
+          //     textTransform: hasChildren ? 'uppercase' : undefined,
+          //   }}
+          // >
+          <CustomText>{option.NAME}</CustomText>
+          // </div>
         ),
       }
-    }) as never
+    })
   }
 
   const items = getSubMenu(menuOptions)

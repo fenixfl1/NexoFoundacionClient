@@ -69,7 +69,7 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
           valuePropName={'value'}
         >
           <CustomMaskedInput
-            // readOnly={isEditing}
+            readonly={isEditing}
             placeholder="000-0000000-0"
             type={'document'}
           />
@@ -134,6 +134,7 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
           rules={[{ required: true }]}
         >
           <CustomSelect
+            readonly={isEditing}
             onSearch={setSearchKey}
             loading={isGetRolesPending}
             placeholder={'Seleccionar Rol'}
@@ -151,6 +152,7 @@ const GeneralData: React.FC<GeneralDataProps> = ({ form }) => {
           rules={[{ required: roleId !== 2 }]}
         >
           <CustomInput
+            prefix={'@'}
             readOnly={isEditing}
             disabled={roleId === 2}
             placeholder={'Nombre de Usuario'}

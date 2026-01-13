@@ -10,6 +10,6 @@ export const getTablePagination = (
     current: metadata.currentPage,
     pageSize: metadata.pageSize,
     pageSizeOptions: [10, 15, 20, 25, 50, 75, 100],
-    total: metadata.totalPages,
+    total: Number(metadata.totalRows),
   }
 }

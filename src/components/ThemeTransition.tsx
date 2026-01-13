@@ -29,7 +29,7 @@ const ExpandingCircle = styled(motion.div)`
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 2;
+  z-index: 9999;
 `
 
 const ThemeTransitionLayout: React.FC<React.PropsWithChildren> = ({

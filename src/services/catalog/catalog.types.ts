@@ -14,7 +14,7 @@ export interface CatalogItem {
   LABEL: string
   ORDER: number
   STATE: string
-  EXTRA: Record<string, unknown>
+  EXTRA: Record<string, string>
 }
 
 export interface MultiCatalog {

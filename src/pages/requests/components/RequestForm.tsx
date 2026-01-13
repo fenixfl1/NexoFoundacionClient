@@ -1,197 +1,328 @@
-import React from 'react'
-import styled from 'styled-components'
-import CustomDrawer from 'src/components/custom/CustomDrawer'
-import CustomRow from 'src/components/custom/CustomRow'
+import { Form } from 'antd'
+import { Dayjs } from 'dayjs'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import CatalogSelector from 'src/components/CatalogSelector'
 import CustomCol from 'src/components/custom/CustomCol'
-import CustomCollapse from 'src/components/custom/CustomCollapse'
-import CustomTag from 'src/components/custom/CustomTag'
-import CustomTable from 'src/components/custom/CustomTable'
-import { ColumnsType } from 'antd/lib/table'
-import { CustomText, CustomTitle } from 'src/components/custom/CustomParagraph'
-import { RequestItem } from 'src/services/requests/request.types'
-import dayjs from 'dayjs'
-import formatter from 'src/utils/formatter'
+import CustomDatePicker from 'src/components/custom/CustomDatePicker'
+import CustomDivider from 'src/components/custom/CustomDivider'
+import CustomForm from 'src/components/custom/CustomForm'
+import CustomFormItem from 'src/components/custom/CustomFormItem'
+import CustomInput from 'src/components/custom/CustomInput'
 import CustomModal from 'src/components/custom/CustomModal'
-
-const SectionTitle = styled(CustomTitle)`
-  margin-bottom: 0 !important;
-`
+import CustomSelect from 'src/components/custom/CustomSelect'
+import CustomSpin from 'src/components/custom/CustomSpin'
+import CustomTextArea from 'src/components/custom/CustomTextArea'
+import CustomRow from 'src/components/custom/CustomRow'
+import { CustomTitle } from 'src/components/custom/CustomParagraph'
+import {
+  defaultBreakpoints,
+  formItemLayout,
+  labelColFullWidth,
+} from 'src/config/breakpoints'
+import { useGetPaginatedPeopleMutation } from 'src/services/people/useGetPaginatedPeopleMutation'
+import { usePeopleStore } from 'src/store/people.store'
+import useDebounce from 'src/hooks/use-debounce'
+import { AdvancedCondition } from 'src/types/general'
+import { useGetStudentPaginationMutation } from 'src/services/students/useGetStudentPaginationMutation'
+import { useStudentStore } from 'src/store/students.store'
+import { useCreateRequestMutation } from 'src/services/requests/useCreateRequestMutation'
+import { useAppNotification } from 'src/context/NotificationContext'
+import {
+  CreateRequestPayload,
+  RequestStatus,
+} from 'src/services/requests/request.types'
+import { useErrorHandler } from 'src/hooks/use-error-handler'
+import dayjs from 'dayjs'
+import ConditionalComponent from 'src/components/ConditionalComponent'
 
 interface RequestFormProps {
+  onCancel?: () => void
   open: boolean
-  request?: RequestItem
-  onClose: () => void
-  statusColors: Record<string, { label: string; color: string }>
+  onSuccess?: () => void
+}
+
+const requestStatusLabels: Record<RequestStatus, string> = {
+  P: 'Pendiente',
+  R: 'En revisión',
+  A: 'Aprobada',
+  D: 'Rechazada',
+  C: 'Cita programada',
+}
+
+type RequestFormValues = Omit<CreateRequestPayload, 'NEXT_APPOINTMENT'> & {
+  NEXT_APPOINTMENT?: Dayjs | null
 }
 
 const RequestForm: React.FC<RequestFormProps> = ({
+  onCancel,
+  onSuccess,
   open,
-  request,
-  onClose,
-  statusColors,
 }) => {
-  if (!request) {
-    return (
-      <CustomDrawer open={open} onClose={onClose} width={'48%'}>
-        <CustomText type="secondary">
-          Selecciona una solicitud para visualizarla.
-        </CustomText>
-      </CustomDrawer>
+  const [form] = Form.useForm<RequestFormValues>()
+
+  const notification = useAppNotification()
+  const [errorHandler] = useErrorHandler()
+
+  const [personSearch, setPersonSearch] = useState('')
+  const [studentSearch, setStudentSearch] = useState('')
+  const debouncePerson = useDebounce(personSearch)
+  const debounceStudent = useDebounce(studentSearch)
+
+  const { peopleList } = usePeopleStore()
+  const { students } = useStudentStore()
+
+  const { mutate: getPeople, isPending: isGetPeoplePending } =
+    useGetPaginatedPeopleMutation()
+  const { mutate: getStudents, isPending: isGetStudentsPending } =
+    useGetStudentPaginationMutation()
+  const { mutateAsync: createRequest, isPending: isCreateRequestPending } =
+    useCreateRequestMutation()
+
+  const statusOptions = useMemo(
+    () =>
+      (Object.entries(requestStatusLabels) as [RequestStatus, string][]).map(
+        ([value, label]) => ({ value, label })
+      ),
+    []
+  )
+
+  const handlePeopleSearch = useCallback(() => {
+    const condition: AdvancedCondition[] = [
+      {
+        value: 'A',
+        operator: '=',
+        field: 'STATE',
+      },
+    ]
+
+    if (debouncePerson) {
+      condition.push({
+        value: debouncePerson,
+        operator: 'LIKE',
+        field: 'FILTER',
+      })
+    }
+
+    getPeople({ page: 1, size: 20, condition })
+  }, [debouncePerson, getPeople])
+
+  const handleStudentSearch = useCallback(() => {
+    const condition: AdvancedCondition[] = [
+      {
+        value: 'A',
+        operator: '=',
+        field: 'STATE',
+      },
+      {
+        value: 3,
+        operator: '=',
+        field: 'ROLE_ID',
+      },
+    ]
+
+    if (debounceStudent) {
+      condition.push({
+        value: debounceStudent,
+        operator: 'LIKE',
+        field: 'FILTER',
+      })
+    }
+
+    getStudents({ page: 1, size: 20, condition })
+  }, [debounceStudent, getStudents])
+
+  const handleStudentSelect = (studentId?: number) => {
+    const student = students.find(
+      (item) => item.STUDENT_ID === Number(studentId)
     )
+
+    if (student?.PERSON_ID) {
+      form.setFieldsValue({ PERSON_ID: student.PERSON_ID })
+    }
   }
 
-  const status = statusColors[request.STATUS] ?? {
-    label: request.STATUS,
-    color: 'blue',
+  const handlePersonSelect = (personId?: number) => {
+    if (!personId) {
+      form.setFieldsValue({ STUDENT_ID: undefined })
+      return
+    }
+
+    const student = students.find((item) => item.PERSON_ID === Number(personId))
+
+    form.setFieldsValue({ STUDENT_ID: student?.STUDENT_ID })
   }
 
-  const infoItems = [
-    {
-      key: 'created',
-      label: 'Fecha de creación',
-      value: dayjs(request.CREATED_AT).format('dddd D MMM YYYY'),
-    },
-    {
-      key: 'status',
-      label: 'Estado',
-      value: <CustomTag color={status.color}>{status.label}</CustomTag>,
-    },
-    {
-      key: 'coordinator',
-      label: 'Coordinador asignado',
-      value: request.ASSIGNED_COORDINATOR ?? 'Sin asignar',
-    },
-    {
-      key: 'type',
-      label: 'Tipo de solicitud',
-      value: request.REQUEST_TYPE,
-    },
-    {
-      key: 'next',
-      label: 'Próxima cita',
-      value: request.NEXT_APPOINTMENT
-        ? dayjs(request.NEXT_APPOINTMENT).format('DD MMM YYYY')
-        : 'No programada',
-    },
-    {
-      key: 'notes',
-      label: 'Notas',
-      value: request.NOTES ?? 'N/A',
-      span: 24,
-    },
-  ]
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields()
+      const payload: CreateRequestPayload = {
+        ...values,
+        STUDENT_ID: values.STUDENT_ID ?? null,
+        NEXT_APPOINTMENT: values.NEXT_APPOINTMENT
+          ? values.NEXT_APPOINTMENT.toISOString()
+          : null,
+      }
 
-  const contactColumns: ColumnsType<{
-    type: string
-    value: string
-  }> = [
-    {
-      dataIndex: 'type',
-      key: 'type',
-      title: 'Tipo',
-      width: '20%',
-    },
-    {
-      dataIndex: 'value',
-      key: 'value',
-      title: 'Valor',
-    },
-  ]
+      await createRequest(payload)
 
-  const contacts = [
-    {
-      key: 'email',
-      type: 'EMAIL',
-      value: request.CONTACT_EMAIL ?? 'N/A',
-    },
-    {
-      key: 'phone',
-      type: 'PHONE',
-      value: request.CONTACT_PHONE
-        ? formatter({ value: request.CONTACT_PHONE, format: 'phone' })
-        : 'N/A',
-    },
-  ]
+      notification({
+        message: 'Solicitud registrada',
+        description: 'La solicitud se registró correctamente.',
+      })
+
+      form.resetFields()
+      setPersonSearch('')
+      setStudentSearch('')
+      onCancel?.()
+      onSuccess?.()
+    } catch (error) {
+      errorHandler(error)
+    }
+  }
+
+  useEffect(() => {
+    if (open) {
+      handlePeopleSearch()
+      handleStudentSearch()
+    }
+  }, [open, handlePeopleSearch, handleStudentSearch])
+
+  useEffect(() => {
+    if (!open) {
+      form.resetFields()
+      setPersonSearch('')
+      setStudentSearch('')
+    }
+  }, [open, form])
+
+  const personOptions = useMemo(
+    () =>
+      peopleList
+        .filter((item) => item?.ROLE_NAME?.toLowerCase() === 'estudiante')
+        .map((person) => ({
+          label: `${person.NAME} ${person.LAST_NAME} `,
+          value: person.PERSON_ID,
+        })),
+    [peopleList]
+  )
+
+  const studentOptions = useMemo(
+    () =>
+      students.map((student) => ({
+        label: `${student.NAME} ${student.LAST_NAME} - ${student.UNIVERSITY}`,
+        value: student.STUDENT_ID,
+      })),
+    [students]
+  )
 
   return (
     <CustomModal
-      title={'Detalle de solicitud'}
+      onCancel={onCancel}
       open={open}
-      onCancel={onClose}
-      width={'48%'}
+      width={'50%'}
+      onOk={handleSubmit}
+      okText={'Guardar solicitud'}
+      okButtonProps={{ loading: isCreateRequestPending }}
     >
-      <CustomCollapse
-        defaultActiveKey={[1, 2, 3]}
-        items={[
-          {
-            key: 1,
-            label: <SectionTitle level={4}>Solicitante</SectionTitle>,
-            children: (
-              <CustomRow gutter={[16, 16]}>
-                <CustomCol xs={24} md={12}>
-                  <CustomText type="secondary">Nombre</CustomText>
-                  <div>
-                    {request.STUDENT_NAME} {request.STUDENT_LAST_NAME}
-                  </div>
-                </CustomCol>
-                <CustomCol xs={24} md={12}>
-                  <CustomText type="secondary">Documento</CustomText>
-                  <div>
-                    {formatter({
-                      value: request.IDENTITY_DOCUMENT,
-                      format: 'document',
-                    })}
-                  </div>
-                </CustomCol>
-                <CustomCol xs={24} md={12}>
-                  <CustomText type="secondary">Universidad</CustomText>
-                  <div>{request.UNIVERSITY}</div>
-                </CustomCol>
-                <CustomCol xs={24} md={12}>
-                  <CustomText type="secondary">Programa</CustomText>
-                  <div>{request.CAREER}</div>
-                </CustomCol>
-                <CustomCol xs={24} md={12}>
-                  <CustomText type="secondary">Cohorte</CustomText>
-                  <div>{request.COHORT ?? 'N/A'}</div>
-                </CustomCol>
-              </CustomRow>
-            ),
-          },
-          {
-            key: 2,
-            label: (
-              <SectionTitle level={4}>Información de solicitud</SectionTitle>
-            ),
-            children: (
-              <CustomRow gutter={[16, 16]}>
-                {infoItems.map((item) => (
-                  <CustomCol
-                    key={item.key}
-                    xs={item.span ?? 24}
-                    md={item.span ?? 12}
-                  >
-                    <CustomText type="secondary">{item.label}</CustomText>
-                    <div>{item.value || 'N/A'}</div>
-                  </CustomCol>
-                ))}
-              </CustomRow>
-            ),
-          },
-          {
-            key: 3,
-            label: <SectionTitle level={4}>Contactos</SectionTitle>,
-            children: (
-              <CustomTable
-                columns={contactColumns}
-                dataSource={contacts}
-                pagination={false}
-                rowKey="key"
-              />
-            ),
-          },
-        ]}
-      />
+      <CustomSpin spinning={isCreateRequestPending}>
+        <CustomDivider>
+          <CustomTitle level={5}>Nueva Solicitud</CustomTitle>
+        </CustomDivider>
+        <CustomForm
+          form={form}
+          {...formItemLayout}
+          initialValues={{ STATUS: 'P' }}
+        >
+          <CustomRow justify={'start'}>
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem
+                label={'Solicitante'}
+                name={'PERSON_ID'}
+                rules={[{ required: true }]}
+              >
+                <CustomSelect
+                  placeholder={'Seleccionar persona'}
+                  options={personOptions}
+                  loading={isGetPeoplePending}
+                  onSearch={setPersonSearch}
+                  onChange={handlePersonSelect}
+                  allowClear
+                />
+              </CustomFormItem>
+            </CustomCol>
+            <ConditionalComponent condition={false}>
+              <CustomCol {...defaultBreakpoints}>
+                <CustomFormItem
+                  label={'Becario (opcional)'}
+                  name={'STUDENT_ID'}
+                >
+                  <CustomSelect
+                    placeholder={'Vincular becario existente'}
+                    options={studentOptions}
+                    loading={isGetStudentsPending}
+                    onSearch={setStudentSearch}
+                    onChange={handleStudentSelect}
+                    allowClear
+                  />
+                </CustomFormItem>
+              </CustomCol>
+            </ConditionalComponent>
+
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem
+                label={'Tipo de solicitud'}
+                name={'REQUEST_TYPE'}
+                rules={[{ required: true }]}
+              >
+                <CatalogSelector
+                  catalog={'ID_LIST_REQUEST_TYPES'}
+                  placeholder={'Seleccionar tipo'}
+                />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem label={'Estado'} name={'STATUS'}>
+                <CustomSelect options={statusOptions} />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem
+                label={'Coordinador'}
+                name={'ASSIGNED_COORDINATOR'}
+              >
+                <CustomInput placeholder={'Nombre del coordinador'} />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem label={'Próxima cita'} name={'NEXT_APPOINTMENT'}>
+                <CustomDatePicker minDate={dayjs()} />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol {...defaultBreakpoints}>
+              <CustomFormItem label={'Cohorte'} name={'COHORT'}>
+                <CatalogSelector
+                  catalog={'ID_LIST_COHORTS'}
+                  placeholder={'Seleccionar cohorte'}
+                />
+              </CustomFormItem>
+            </CustomCol>
+
+            <CustomCol xs={24}>
+              <CustomFormItem
+                label={'Notas'}
+                name={'NOTES'}
+                {...labelColFullWidth}
+              >
+                <CustomTextArea rows={4} placeholder={'Comentarios'} />
+              </CustomFormItem>
+            </CustomCol>
+          </CustomRow>
+        </CustomForm>
+      </CustomSpin>
     </CustomModal>
   )
 }

@@ -7,7 +7,7 @@ export interface MenuOption {
   NAME: string
   PARENT_ID?: string
   PATH: string
-  TYPE?: 'link' | 'divider' | 'group' | 'item' | 'submenu'
+  TYPE?: 'submenu' | 'item' | 'group' | 'divider'
 }
 
 export interface OptionWithPermission extends Omit<MenuOption, 'ICON'> {

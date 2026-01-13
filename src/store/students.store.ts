@@ -3,10 +3,11 @@ import { Metadata, ReturnPayload } from 'src/types/general'
 import { Student } from 'src/services/students/student.types'
 
 interface UseStudentStore {
-  list: Student[]
+  students: Student[]
   metadata: Metadata
   selected?: Student
   drawerOpen: boolean
+  summary: Record<string, string | number>
   setStudents: (payload: ReturnPayload<Student>) => void
   openDrawer: (student?: Student) => void
   closeDrawer: () => void
@@ -22,15 +23,17 @@ const defaultMetadata: Metadata = {
 }
 
 export const useStudentStore = create<UseStudentStore>((set) => ({
-  list: [],
+  students: [],
   metadata: defaultMetadata,
   selected: undefined,
+  summary: {},
   drawerOpen: false,
-  setStudents: ({ data, metadata }) =>
-    set({
-      list: data,
-      metadata: metadata?.pagination ?? defaultMetadata,
-    }),
   openDrawer: (student) => set({ drawerOpen: true, selected: student }),
   closeDrawer: () => set({ drawerOpen: false, selected: undefined }),
+  setStudents: ({ data: students, metadata }) =>
+    set({
+      students,
+      metadata: metadata?.pagination ?? defaultMetadata,
+      summary: metadata.summary,
+    }),
 }))

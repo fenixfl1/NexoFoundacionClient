@@ -8,6 +8,7 @@ export interface Formatter {
     | 'document'
     | 'currency'
     | 'date'
+    | 'datetime'
     | 'long_date'
     | 'percentage'
   prefix?: string
@@ -58,6 +59,11 @@ function formatter(props: Formatter) {
     if (format === 'percentage') {
       const fixedValue = parseFloat(value).toFixed(fix)
       return `%${fixedValue.replace(/\B(?=(\d{3})+(?!\d)\.?)/g, ',')}`
+    }
+    if (format === 'datetime') {
+      return moment(originalValue)
+        .format(`${DATE_FORMAT} HH:mm:ss`)
+        ?.replace('Fecha inválida', 'N/A')
     }
   }
 

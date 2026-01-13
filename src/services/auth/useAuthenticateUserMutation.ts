@@ -1,7 +1,8 @@
-import { PATH_LOGIN, API_PATH_LOGIN, PATH_INDEX } from 'src/constants/routes'
+import { PATH_LOGIN, API_PATH_LOGIN } from 'src/constants/routes'
 import { postRequest } from 'src/services/api'
 import { createSession, UserData } from 'src/lib/session'
 import { useCustomMutation } from 'src/hooks/use-custom-mutation'
+import { getRoleBasePath } from 'src/utils/role-path'
 
 interface LoginPayload {
   username: string
@@ -19,7 +20,8 @@ export function useAuthenticateUserMutation(applyNextUrl = true) {
         )
 
         if (next || window.location.href.includes(PATH_LOGIN)) {
-          window.location.href = next ?? PATH_INDEX
+          const basePath = getRoleBasePath(data.roleId)
+          window.location.href = next ?? basePath
         }
       }
     } catch (error) {

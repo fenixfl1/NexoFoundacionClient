@@ -12,14 +12,20 @@ export const activityParameterLoader: LoaderFunction = async ({ params }) => {
     return {}
   }
 
-  const {
-    data: { data = {} },
-  } = await getRequest<ActivityParameter>(
-    API_PATH_GET_ACTIVITY_PARAMETER,
-    activityId
-  )
+  try {
+    const {
+      data: { data = {} },
+    } = await getRequest<ActivityParameter>(
+      API_PATH_GET_ACTIVITY_PARAMETER,
+      activityId
+    )
 
-  useParameterStore.setState({ activityParameter: data })
+    useParameterStore.setState({ activityParameter: data })
 
-  return { data }
+    return { data }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error({ error })
+    return {}
+  }
 }

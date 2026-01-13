@@ -18,6 +18,7 @@ interface UseParameterStore {
   activityParameter: ActivityParameter
   parameters: Parameter[]
   metadata: Metadata
+  summary: Record<string, string | number>
   setActivityParameter: (parameters: ActivityParameter) => void
   setParameters: (payload: ReturnPayload<Parameter>) => void
 }
@@ -26,7 +27,12 @@ export const useParameterStore = create<UseParameterStore>((set) => ({
   activityParameter: <ActivityParameter>{},
   metadata,
   parameters: [],
+  summary: {},
   setActivityParameter: (activityParameter) => set({ activityParameter }),
-  setParameters: ({ data, metadata: { pagination } }) =>
-    set({ parameters: data, metadata: pagination }),
+  setParameters: ({ data, metadata: responseMetadata }) =>
+    set({
+      parameters: data,
+      metadata: responseMetadata?.pagination ?? metadata,
+      summary: responseMetadata?.summary ?? {},
+    }),
 }))

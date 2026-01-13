@@ -8,3 +8,14 @@ export const normalizeNumbers = (event: any) => {
 
   return ''
 }
+
+export const normalizeEditorValue = (value: string) => {
+  return value?.trim()
+}
+
+export const normalizeFile = (e: any) => {
+  if (Array.isArray(e)) {
+    return e
+  }
+  return e?.fileList
+}

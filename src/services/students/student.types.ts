@@ -17,6 +17,7 @@ export type StudentPayload = Partial<Student>
 
 export interface Student {
   STUDENT_ID: number
+  PERSON_ID: number
   NAME: string
   LAST_NAME: string
   IDENTITY_DOCUMENT: string
@@ -33,4 +34,6 @@ export interface Student {
   COHORT: string
   CAMPUS?: string
   SCORE?: number
+  STATE?: string
+  FILTER?: string
 }

@@ -9,7 +9,7 @@ export function useGetCatalog(
     Pick<CatalogItem, 'ITEM_ID' | 'EXTRA' | 'LABEL' | 'VALUE'>[]
   >([])
 
-  const { multiCatalogList } = useCatalogStore()
+  const { multiCatalogList = {} } = useCatalogStore()
 
   useEffect(() => {
     if (catalogName && Object.keys(multiCatalogList).length) {

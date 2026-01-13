@@ -74,11 +74,13 @@ type CustomMaskedInputProps = Omit<CustomInputProps, 'type'> & {
   prefix?: string & React.ReactNode
   /** @deprecated */
   mask?: any
+  readonly?: boolean
 }
 
 const CustomMaskedInput: React.FC<CustomMaskedInputProps> = ({
   type,
   variante = 'cedula',
+  readonly,
   ...props
 }) => {
   const { name } = useFormItemContext()
@@ -117,7 +119,7 @@ const CustomMaskedInput: React.FC<CustomMaskedInputProps> = ({
     },
   })
 
-  return <CustomInput id={inputId} {...props} />
+  return <CustomInput id={inputId} readOnly={readonly} {...props} />
 }
 
 export default CustomMaskedInput

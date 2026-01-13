@@ -51,6 +51,7 @@ interface SmartTableProps {
   showStates?: boolean
   exportInitialValues?: Partial<ExportFormValue>
   header?: React.ReactNode
+  extra?: (value: unknown, record: unknown) => React.ReactNode
 }
 
 const SmartTable: React.FC<SmartTableProps> = ({
@@ -60,8 +61,11 @@ const SmartTable: React.FC<SmartTableProps> = ({
   createText = 'Crear',
   dataSource,
   expandable,
+  exportInitialValues,
+  extra,
   filter,
   form,
+  header,
   initialFilter,
   loading,
   metadata,
@@ -74,21 +78,27 @@ const SmartTable: React.FC<SmartTableProps> = ({
   searchPlaceholder = 'Buscar...',
   showActions = true,
   showStates = true,
-  exportInitialValues,
-  header,
 }) => {
   const { theme } = useAppContext()
+
+  React.useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log({ metadata })
+  }, [metadata])
+
   const actions: ColumnsType<unknown> = [
     {
       width: '5%',
       dataIndex: 'STATE',
       key: 'ACTIONS',
       title: 'Acciones',
+      align: 'center',
       render: (state: string, record) => (
         <CustomSpace
           direction={'horizontal'}
           split={<CustomDivider type={'vertical'} size={'small'} />}
         >
+          {extra?.(state, record)}
           <CustomTooltip title={'Editar'}>
             <CustomButton
               disabled={state === 'I'}
@@ -203,7 +213,10 @@ const SmartTable: React.FC<SmartTableProps> = ({
               dataSource={dataSource}
               expandable={expandable}
               onChange={onChange}
-              pagination={getTablePagination(metadata)}
+              pagination={{
+                ...getTablePagination(metadata),
+                showSizeChanger: true,
+              }}
               columnsMap={columnsMap}
               bordered={bordered}
               exportInitialValues={exportInitialValues}

@@ -26,7 +26,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
   cancelButtonProps,
   closable = true,
   onCancel,
-  preventClose = false,
+  preventClose = true,
   message = defaultMessage,
   ...props
 }) => {
