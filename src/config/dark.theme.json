@@ -28,6 +28,13 @@
     "Tabs": {
       "horizontalMargin": "0 0 20px 0"
     },
+    "Segmented": {
+      "trackBg": "#222845",
+      "itemSelectedBg": "#2c355b",
+      "itemSelectedColor": "#ffffff",
+      "itemHoverBg": "#2a3357",
+      "itemColor": "#c9d1e8"
+    },
     "Layout": {
       "headerBg": "#222845"
     },

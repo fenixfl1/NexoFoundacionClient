@@ -37,6 +37,13 @@
     "Tabs": {
       "horizontalMargin": "0 0 20px 0"
     },
+    "Segmented": {
+      "trackBg": "#e9edf3",
+      "itemSelectedBg": "#ffffff",
+      "itemSelectedColor": "#1b1f2b",
+      "itemHoverBg": "#f4f6fa",
+      "itemColor": "#4b5563"
+    },
     "Result": {
       "colorTextHeading": "rgba(0,0,0,0.89)"
     }

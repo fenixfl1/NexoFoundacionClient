@@ -10,6 +10,7 @@ import CustomSpace from 'src/components/custom/CustomSpace'
 import { CustomText } from 'src/components/custom/CustomParagraph'
 import CustomTooltip from 'src/components/custom/CustomTooltip'
 import CustomButton from 'src/components/custom/CustomButton'
+import CustomAlert from 'src/components/custom/CustomAlert'
 import StateSelector from 'src/components/StateSelector'
 import ConditionalComponent from 'src/components/ConditionalComponent'
 import { ColumnsType } from 'antd/lib/table'
@@ -29,6 +30,11 @@ import { getRequest } from 'src/services/api'
 import { API_PATH_GET_STUDENT_DOCUMENT } from 'src/constants/routes'
 import { base64ToBlob } from 'src/utils/base64-helpers'
 import { useAppNotification } from 'src/context/NotificationContext'
+import { getSessionInfo } from 'src/lib/session'
+import { ROLE_STUDENT_ID } from 'src/utils/role-path'
+import { useRequirementStore } from 'src/store/requirement.store'
+import { useGetRequirementPaginationMutation } from 'src/services/requirements/useGetRequirementPaginationMutation'
+import CustomDivider from 'src/components/custom/CustomDivider'
 
 const initialFilter = {
   FILTER: {
@@ -45,10 +51,15 @@ const Page: React.FC = () => {
   const notify = useAppNotification()
   const { confirmModal } = useCustomModal()
   const [errorHandler] = useErrorHandler()
+  const { roleId } = getSessionInfo()
+  const isStudentRole = String(roleId) === ROLE_STUDENT_ID
 
   const { documents, metadata } = useStudentDocumentStore()
+  const { requirements } = useRequirementStore()
   const { mutate: getDocuments, isPending } =
     useGetStudentDocumentPaginationMutation()
+  const { mutate: getRequirements, isPending: isRequirementsPending } =
+    useGetRequirementPaginationMutation()
   const { mutateAsync: updateDocument, isPending: isUpdatePending } =
     useUpdateStudentDocumentMutation()
 
@@ -77,6 +88,14 @@ const Page: React.FC = () => {
   )
 
   useEffect(handleSearch, [handleSearch])
+
+  useEffect(() => {
+    if (!isStudentRole) return
+    const condition: AdvancedCondition[] = [
+      { field: 'STATE', operator: '=', value: 'A' },
+    ]
+    getRequirements({ page: 1, size: 200, condition })
+  }, [getRequirements, isStudentRole])
 
   const handleToggleState = (record: StudentDocument) => {
     confirmModal({
@@ -132,7 +151,7 @@ const Page: React.FC = () => {
         link.download =
           type === 'signed'
             ? `firmado-${data.FILE_NAME ?? 'documento.pdf'}`
-            : data.FILE_NAME ?? 'documento.pdf'
+            : (data.FILE_NAME ?? 'documento.pdf')
         link.click()
         URL.revokeObjectURL(url)
       } catch (error) {
@@ -142,26 +161,8 @@ const Page: React.FC = () => {
     [errorHandler, notify]
   )
 
-  const columns: ColumnsType<StudentDocument> = useMemo(
-    () => [
-      {
-        dataIndex: 'STUDENT',
-        key: 'STUDENT',
-        title: 'Becario',
-        render: (_, record) => (
-          <CustomSpace direction="vertical" size={0}>
-            <CustomText
-              strong
-            >{`${record.NAME} ${record.LAST_NAME}`}</CustomText>
-            <CustomText type="secondary">
-              {formatter({
-                value: record.IDENTITY_DOCUMENT,
-                format: 'document',
-              })}
-            </CustomText>
-          </CustomSpace>
-        ),
-      },
+  const columns: ColumnsType<StudentDocument> = useMemo(() => {
+    const baseColumns: ColumnsType<StudentDocument> = [
       {
         dataIndex: 'DOCUMENT_TYPE',
         key: 'DOCUMENT_TYPE',
@@ -170,17 +171,6 @@ const Page: React.FC = () => {
           <CustomSpace direction="vertical" size={0}>
             <CustomText strong>{record.DOCUMENT_TYPE}</CustomText>
             <CustomText type="secondary">{record.FILE_NAME}</CustomText>
-          </CustomSpace>
-        ),
-      },
-      {
-        dataIndex: 'UNIVERSITY',
-        key: 'UNIVERSITY',
-        title: 'Institución',
-        render: (_, record) => (
-          <CustomSpace direction="vertical" size={0}>
-            <CustomText>{record.UNIVERSITY}</CustomText>
-            <CustomText type="secondary">{record.CAREER}</CustomText>
           </CustomSpace>
         ),
       },
@@ -197,9 +187,59 @@ const Page: React.FC = () => {
         title: 'Registro',
         render: (value) => formatter({ value, format: 'datetime' }),
       },
-    ],
-    []
-  )
+    ]
+
+    if (!isStudentRole) {
+      baseColumns.unshift({
+        dataIndex: 'STUDENT',
+        key: 'STUDENT',
+        title: 'Becario',
+        render: (_, record) => (
+          <CustomSpace direction="vertical" size={0}>
+            <CustomText
+              strong
+            >{`${record.NAME} ${record.LAST_NAME}`}</CustomText>
+            <CustomText type="secondary">
+              {formatter({
+                value: record.IDENTITY_DOCUMENT,
+                format: 'document',
+              })}
+            </CustomText>
+          </CustomSpace>
+        ),
+      })
+
+      baseColumns.splice(2, 0, {
+        dataIndex: 'UNIVERSITY',
+        key: 'UNIVERSITY',
+        title: 'Institución',
+        render: (_, record) => (
+          <CustomSpace direction="vertical" size={0}>
+            <CustomText>{record.UNIVERSITY}</CustomText>
+            <CustomText type="secondary">{record.CAREER}</CustomText>
+          </CustomSpace>
+        ),
+      })
+    }
+
+    return baseColumns
+  }, [isStudentRole])
+
+  const missingRequirements = useMemo(() => {
+    if (!isStudentRole) return []
+    const docTypes = new Set(
+      documents.map((doc) => (doc.DOCUMENT_TYPE || '').toLowerCase())
+    )
+
+    return requirements
+      .filter((req) => req.STATE === 'A' && req.IS_REQUIRED)
+      .filter((req) => {
+        const key = (req.REQUIREMENT_KEY || '').toLowerCase()
+        const name = (req.NAME || '').toLowerCase()
+        return key && !docTypes.has(key) && !docTypes.has(name)
+      })
+      .map((req) => req.NAME || req.REQUIREMENT_KEY)
+  }, [documents, requirements, isStudentRole])
 
   const filter = (
     <CustomRow gutter={[8, 8]}>
@@ -226,10 +266,24 @@ const Page: React.FC = () => {
 
   return (
     <>
+      <ConditionalComponent condition={isStudentRole}>
+        <div>
+          <CustomAlert
+            type={missingRequirements.length ? 'warning' : 'success'}
+            showIcon
+            message={
+              missingRequirements.length
+                ? `Documentos pendientes: ${missingRequirements.join(', ')}`
+                : 'No tienes documentos pendientes.'
+            }
+          />
+          <CustomDivider />
+        </div>
+      </ConditionalComponent>
       <SmartTable
         form={form}
         rowKey="DOCUMENT_ID"
-        loading={isPending || isUpdatePending}
+        loading={isPending || isUpdatePending || isRequirementsPending}
         columns={columns}
         dataSource={documents}
         metadata={metadata}
@@ -241,11 +295,15 @@ const Page: React.FC = () => {
         }}
         onChange={handleSearch}
         onSearch={setSearchKey}
-        onEdit={(record) => {
-          setEditing(record)
-          setModalOpen(true)
-        }}
-        onUpdate={handleToggleState}
+        onEdit={
+          isStudentRole
+            ? undefined
+            : (record) => {
+                setEditing(record)
+                setModalOpen(true)
+              }
+        }
+        onUpdate={isStudentRole ? undefined : handleToggleState}
         filter={filter}
         initialFilter={initialFilter}
         extra={(_, record) => (

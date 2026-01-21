@@ -69,6 +69,9 @@ export const API_PATH_CREATE_UPDATE_STUDENT_DOCUMENT = '/student_documents'
 export const API_PATH_GET_STUDENT_DOCUMENT_PAGINATION =
   '/student_documents/pagination'
 export const API_PATH_GET_STUDENT_DOCUMENT = '/student_documents'
+
+export const API_PATH_GET_DASHBOARD_METRICS = '/dashboard/metrics'
+export const API_PATH_GET_DASHBOARD_ACTIVITY = '/dashboard/activity'
 export const API_PATH_CREATE_UPDATE_SCHOLARSHIP = '/scholarships'
 export const API_PATH_GET_SCHOLARSHIP_PAGINATION = '/scholarships/pagination'
 export const API_PATH_GET_SCHOLARSHIP = '/scholarships'

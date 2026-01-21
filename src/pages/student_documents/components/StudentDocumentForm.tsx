@@ -35,6 +35,8 @@ import dayjs, { Dayjs } from 'dayjs'
 import { getBase64 } from 'src/utils/base64-helpers'
 import { useRequirementStore } from 'src/store/requirement.store'
 import { useGetRequirementPaginationMutation } from 'src/services/requirements/useGetRequirementPaginationMutation'
+import { getSessionInfo } from 'src/lib/session'
+import { ROLE_STUDENT_ID } from 'src/utils/role-path'
 
 type DocumentFormValues = Omit<StudentDocumentPayload, 'SIGNED_AT'> & {
   SIGNED_AT?: Dayjs | null
@@ -60,6 +62,8 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
   const [errorHandler] = useErrorHandler()
   const { students } = useStudentStore()
   const { requirements } = useRequirementStore()
+  const { roleId } = getSessionInfo()
+  const isStudentRole = String(roleId) === ROLE_STUDENT_ID
   const [studentSearch, setStudentSearch] = useState('')
   const debounceStudent = useDebounce(studentSearch)
   const [fileList, setFileList] = useState<UploadFile[]>([])
@@ -160,7 +164,7 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
   }, [requirements, documentDetail?.DOCUMENT_TYPE])
 
   const fetchStudents = useCallback(() => {
-    if (!open) return
+    if (!open || isStudentRole) return
     const condition: AdvancedCondition[] = [
       { field: 'STATE', operator: '=', value: 'A' },
     ]
@@ -174,7 +178,7 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
     }
 
     getStudents({ page: 1, size: 20, condition })
-  }, [open, debounceStudent, getStudents])
+  }, [open, debounceStudent, getStudents, isStudentRole])
 
   useEffect(fetchStudents, [fetchStudents])
 
@@ -243,6 +247,10 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
         SIGNED_AT: values.SIGNED_AT ? values.SIGNED_AT.toISOString() : null,
       }
 
+      if (isStudentRole) {
+        delete payload.STUDENT_ID
+      }
+
       if (documentDetail?.DOCUMENT_ID) {
         await updateDocument({
           ...payload,
@@ -294,7 +302,8 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
               <CustomFormItem
                 label={'Becario'}
                 name={'STUDENT_ID'}
-                rules={[{ required: true }]}
+                rules={isStudentRole ? [] : [{ required: true }]}
+                hidden={isStudentRole}
               >
                 <CustomSelect
                   placeholder={'Seleccionar becario'}

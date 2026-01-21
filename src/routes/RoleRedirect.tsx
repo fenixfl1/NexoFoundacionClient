@@ -4,6 +4,7 @@ import { useGetUserMenuOptionsQuery } from 'src/services/menu-options/useGetUser
 import { useMenuOptionStore } from 'src/store/menu-options.store'
 import { getCurrentRoleBasePath } from 'src/utils/role-path'
 import { findParentKeys } from 'src/utils/find-parent-keys'
+import { addRecentMenuOption } from 'src/utils/recent-menu'
 
 const RoleRedirect: React.FC = () => {
   const navigate = useNavigate()
@@ -46,6 +47,7 @@ const RoleRedirect: React.FC = () => {
     setOpenKeys(parentKeys.map(String))
     setSelectedKeys([first.MENU_OPTION_ID])
     setCurrentMenuOption(first)
+    addRecentMenuOption(first)
 
     const target = `${basePath}${first.PATH}`
     if (location.pathname !== target) {

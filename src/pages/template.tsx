@@ -25,7 +25,9 @@ import { usePeopleStore } from 'src/store/people.store'
 import MainHeader from 'src/components/layout/MainHeader'
 import CustomSpin from 'src/components/custom/CustomSpin'
 import { CustomText } from 'src/components/custom/CustomParagraph'
-import { getCurrentRoleBasePath } from 'src/utils/role-path'
+import { getCurrentRoleBasePath, ROLE_STUDENT_ID } from 'src/utils/role-path'
+import { getSessionInfo } from 'src/lib/session'
+import { addRecentMenuOption } from 'src/utils/recent-menu'
 
 const LogoWrapper = styled.div`
   position: sticky;
@@ -106,6 +108,8 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
   const navigation = useNavigation()
   const { isAuthenticated, theme } = useAppContext()
   const [searchParams] = useSearchParams()
+  const { roleId } = getSessionInfo()
+  const isStudentRole = String(roleId) === ROLE_STUDENT_ID
 
   useGetUserMenuOptionsQuery()
 
@@ -154,6 +158,7 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
     if (option?.CHILDREN?.length) return
 
     setCurrentMenuOption(option)
+    addRecentMenuOption(option)
     const basePath = getCurrentRoleBasePath()
     navigate(`${basePath}${option.PATH}`)
   }
@@ -162,24 +167,28 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
     return options?.map((option: MenuOption) => {
       const hasChildren = !!option.CHILDREN?.length
 
+      if (isStudentRole && hasChildren) {
+        return {
+          key: option?.MENU_OPTION_ID,
+          type: 'group',
+          label: (
+            <CustomText>
+              {option.ICON ? <SVGReader svg={option.ICON} /> : null}{' '}
+              {option.NAME}
+            </CustomText>
+          ),
+          children: getSubMenu(option?.CHILDREN),
+        }
+      }
+
       return {
         key: option?.MENU_OPTION_ID,
         title: option.NAME,
         type: option.TYPE,
-        icon: <SVGReader svg={option.ICON} />,
+        icon: option.ICON ? <SVGReader svg={option.ICON} /> : undefined,
         onClick: hasChildren ? undefined : () => handleClickOption(option),
         children: hasChildren ? getSubMenu(option?.CHILDREN) : undefined,
-        label: (
-          // <div
-          //   style={{
-          //     width: '100%',
-          //     display: 'block',
-          //     textTransform: hasChildren ? 'uppercase' : undefined,
-          //   }}
-          // >
-          <CustomText>{option.NAME}</CustomText>
-          // </div>
-        ),
+        label: <CustomText>{option.NAME}</CustomText>,
       }
     })
   }
@@ -241,10 +250,10 @@ const RootTemplate: React.FC<React.PropsWithChildren> = ({ children }) => {
                 <div className="menu-container">
                   <Menu
                     mode={'inline'}
-                    openKeys={openKeys}
+                    openKeys={isStudentRole ? undefined : openKeys}
                     selectedKeys={selectedKeys}
                     items={items}
-                    onOpenChange={handleOpenChange}
+                    onOpenChange={isStudentRole ? undefined : handleOpenChange}
                   />
                 </div>
               </Sider>

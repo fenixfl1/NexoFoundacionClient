@@ -15,9 +15,8 @@ const StackDescription = styled.div`
   line-height: 1.5;
   text-align: left;
   width: 100%;
-  max-width: 500px;
-  max-height: 200px;
-  height: 250px;
+  max-height: 300px;
+  height: 350px;
   overflow: auto;
   white-space: pre-wrap;
   overflow-x: hidden;
