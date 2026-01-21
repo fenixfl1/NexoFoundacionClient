@@ -9,7 +9,6 @@ import CustomTag from 'src/components/custom/CustomTag'
 import CustomSpace from 'src/components/custom/CustomSpace'
 import CustomDivider from 'src/components/custom/CustomDivider'
 import StateSelector from 'src/components/StateSelector'
-import ConditionalComponent from 'src/components/ConditionalComponent'
 import { ColumnsType } from 'antd/lib/table'
 import { useSponsorStore } from 'src/store/sponsor.store'
 import { Sponsor } from 'src/services/sponsors/sponsor.types'
@@ -21,7 +20,6 @@ import useDebounce from 'src/hooks/use-debounce'
 import { AdvancedCondition } from 'src/types/general'
 import { getConditionFromForm } from 'src/utils/get-condition-from'
 import { CustomText } from 'src/components/custom/CustomParagraph'
-import SponsorForm from './components/SponsorForm'
 
 const sponsorInitialFilter = {
   FILTER: {
@@ -40,8 +38,6 @@ const sponsorTypeOptions = [
 const SponsorsPage: React.FC = () => {
   const [form] = Form.useForm()
   const [searchKey, setSearchKey] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Sponsor>()
   const debounce = useDebounce(searchKey)
   const { confirmModal } = useCustomModal()
   const [errorHandler] = useErrorHandler()
@@ -61,7 +57,14 @@ const SponsorsPage: React.FC = () => {
         condition.push({
           value: debounce,
           operator: 'LIKE',
-          field: ['NAME', 'TYPE', 'TAX_ID', 'CONTACT_NAME', 'CONTACT_EMAIL'],
+          field: [
+            'PERSON_NAME',
+            'PERSON_LAST_NAME',
+            'PERSON_IDENTITY_DOCUMENT',
+            'NAME',
+            'TYPE',
+            'TAX_ID',
+          ],
         })
       }
 
@@ -100,8 +103,13 @@ const SponsorsPage: React.FC = () => {
         title: 'Patrocinador',
         render: (_, record) => (
           <CustomSpace direction="vertical" size={0}>
-            <CustomText strong>{record.NAME}</CustomText>
-            <CustomText type="secondary">{record.TAX_ID}</CustomText>
+            <CustomText strong>
+              {record.PERSON_NAME || record.NAME}{' '}
+              {record.PERSON_LAST_NAME ?? ''}
+            </CustomText>
+            <CustomText type="secondary">
+              {record.PERSON_IDENTITY_DOCUMENT ?? record.TAX_ID ?? '—'}
+            </CustomText>
           </CustomSpace>
         ),
       },
@@ -117,30 +125,6 @@ const SponsorsPage: React.FC = () => {
             <CustomTag color="blue">{option?.label ?? value}</CustomTag>
           )
         },
-      },
-      {
-        dataIndex: 'CONTACT_NAME',
-        key: 'CONTACT_NAME',
-        title: 'Contacto',
-        render: (_, record) => (
-          <CustomSpace direction="vertical" size={0}>
-            <CustomText>{record.CONTACT_NAME ?? '—'}</CustomText>
-            <CustomText type="secondary">
-              {record.CONTACT_EMAIL ?? ''}
-            </CustomText>
-          </CustomSpace>
-        ),
-      },
-      {
-        dataIndex: 'CONTACT_PHONE',
-        key: 'CONTACT_PHONE',
-        title: 'Teléfono',
-      },
-      {
-        dataIndex: 'ADDRESS',
-        key: 'ADDRESS',
-        title: 'Dirección',
-        render: (value) => value || '—',
       },
     ],
     []
@@ -184,37 +168,13 @@ const SponsorsPage: React.FC = () => {
         columns={columns}
         dataSource={sponsors}
         metadata={metadata}
-        createText={'Nuevo patrocinador'}
         searchPlaceholder={'Buscar patrocinadores...'}
-        onCreate={() => {
-          setEditing(undefined)
-          setModalOpen(true)
-        }}
         onChange={handleSearch}
         onSearch={setSearchKey}
-        onEdit={(record) => {
-          setEditing(record)
-          setModalOpen(true)
-        }}
         onUpdate={handleToggleState}
         filter={filter}
         initialFilter={sponsorInitialFilter}
       />
-
-      <ConditionalComponent condition={modalOpen}>
-        <SponsorForm
-          open={modalOpen}
-          sponsor={editing}
-          onClose={() => {
-            setModalOpen(false)
-            setEditing(undefined)
-          }}
-          onSuccess={() => {
-            handleSearch()
-            setEditing(undefined)
-          }}
-        />
-      </ConditionalComponent>
     </>
   )
 }

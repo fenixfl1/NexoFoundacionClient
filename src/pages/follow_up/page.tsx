@@ -98,7 +98,12 @@ const FollowUpPage: React.FC = () => {
         render: (_, record) => (
           <CustomSpace direction="vertical" size={0}>
             <span>{capitalize(`${record.NAME} ${record.LAST_NAME}`)}</span>
-            <span>{record.IDENTITY_DOCUMENT}</span>
+            <span>
+              {formatter({
+                value: record.IDENTITY_DOCUMENT,
+                format: 'document',
+              })}
+            </span>
           </CustomSpace>
         ),
       },

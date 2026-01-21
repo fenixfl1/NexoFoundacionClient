@@ -33,6 +33,8 @@ import useDebounce from 'src/hooks/use-debounce'
 import { AdvancedCondition } from 'src/types/general'
 import dayjs, { Dayjs } from 'dayjs'
 import { getBase64 } from 'src/utils/base64-helpers'
+import { useRequirementStore } from 'src/store/requirement.store'
+import { useGetRequirementPaginationMutation } from 'src/services/requirements/useGetRequirementPaginationMutation'
 
 type DocumentFormValues = Omit<StudentDocumentPayload, 'SIGNED_AT'> & {
   SIGNED_AT?: Dayjs | null
@@ -57,10 +59,13 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
   const notify = useAppNotification()
   const [errorHandler] = useErrorHandler()
   const { students } = useStudentStore()
+  const { requirements } = useRequirementStore()
   const [studentSearch, setStudentSearch] = useState('')
   const debounceStudent = useDebounce(studentSearch)
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [signedFileList, setSignedFileList] = useState<UploadFile[]>([])
+  const [requirementSearch, setRequirementSearch] = useState('')
+  const debounceRequirement = useDebounce(requirementSearch)
 
   const { mutateAsync: createDocument, isPending: isCreatePending } =
     useCreateStudentDocumentMutation()
@@ -68,6 +73,8 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
     useUpdateStudentDocumentMutation()
   const { mutate: getStudents, isPending: isGetStudentsPending } =
     useGetStudentPaginationMutation()
+  const { mutate: getRequirements, isPending: isGetRequirementsPending } =
+    useGetRequirementPaginationMutation()
   const { data: documentDetail, isFetching: isDetailLoading } =
     useGetStudentDocumentQuery(document?.DOCUMENT_ID, open)
 
@@ -133,6 +140,25 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
     [students]
   )
 
+  const requirementOptions = useMemo(() => {
+    const options = requirements.map((requirement) => ({
+      value: requirement.NAME,
+      label: requirement.NAME,
+    }))
+
+    if (
+      documentDetail?.DOCUMENT_TYPE &&
+      !options.some((option) => option.value === documentDetail.DOCUMENT_TYPE)
+    ) {
+      options.unshift({
+        value: documentDetail.DOCUMENT_TYPE,
+        label: documentDetail.DOCUMENT_TYPE,
+      })
+    }
+
+    return options
+  }, [requirements, documentDetail?.DOCUMENT_TYPE])
+
   const fetchStudents = useCallback(() => {
     if (!open) return
     const condition: AdvancedCondition[] = [
@@ -151,6 +177,25 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
   }, [open, debounceStudent, getStudents])
 
   useEffect(fetchStudents, [fetchStudents])
+
+  const fetchRequirements = useCallback(() => {
+    if (!open) return
+    const condition: AdvancedCondition[] = [
+      { field: 'STATE', operator: '=', value: 'A' },
+    ]
+
+    if (debounceRequirement) {
+      condition.push({
+        field: ['REQUIREMENT_KEY', 'NAME', 'DESCRIPTION'],
+        operator: 'LIKE',
+        value: debounceRequirement,
+      })
+    }
+
+    getRequirements({ page: 1, size: 200, condition })
+  }, [open, debounceRequirement, getRequirements])
+
+  useEffect(fetchRequirements, [fetchRequirements])
 
   const handleUploadFile = async (file: UploadFile) => {
     try {
@@ -238,6 +283,7 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
           isCreatePending ||
           isUpdatePending ||
           isGetStudentsPending ||
+          isGetRequirementsPending ||
           isDetailLoading
         }
       >
@@ -266,7 +312,14 @@ const StudentDocumentForm: React.FC<StudentDocumentFormProps> = ({
                 name={'DOCUMENT_TYPE'}
                 rules={[{ required: true }]}
               >
-                <CustomInput placeholder={'Ej: Carta de aceptación'} />
+                <CustomSelect
+                  placeholder={'Seleccionar requisito'}
+                  showSearch
+                  filterOption={false}
+                  options={requirementOptions}
+                  onSearch={setRequirementSearch}
+                  allowClear
+                />
               </CustomFormItem>
             </CustomCol>
             <CustomCol xs={24}>
